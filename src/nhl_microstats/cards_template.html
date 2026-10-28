@@ -44,38 +44,56 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted); margin: 0 0 18px; }
 .legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 710px), 1fr)); gap: 16px; align-items: start; }
-/* Each player is a pair: the stat card, and a categories card beside it (stacked above it on narrow screens). */
-.pair { display: grid; grid-template-columns: minmax(0, 440px) minmax(210px, 250px); justify-content: start; gap: 10px; align-items: start; min-width: 0; }
-.side { position: sticky; top: 12px; }
-.side .band { grid-template-columns: 1fr; }
-.side .band .name { font-size: 1.15rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 1100px); gap: 28px; align-items: start; }
+/* Each player is a pair: a horizontal categories strip on top, the stat card under it. */
+.pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+
+/* Headshots: the NHL's cut-out mug over the team colour. A missing one just leaves the space. */
+.shot { display: block; object-fit: cover; object-position: top; }
+
+/* Categories strip: the player on the left, then Overall and a tile per category in a wrapping row. */
+.side { display: grid; grid-template-columns: 200px minmax(0, 1fr); }
+.side .who { background: var(--team); color: var(--team-ink); padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+.side .who .shot { width: 112px; height: 112px; border-radius: 50%; margin: 0 auto 4px;
+  background: color-mix(in srgb, var(--team-ink) 14%, transparent); border: 3px solid color-mix(in srgb, var(--team-ink) 40%, transparent); }
+.side .who .name { font: 700 1.3rem/1.02 var(--display); text-transform: uppercase; text-align: center; text-wrap: balance; }
+.side .who .line { font: 600 .78rem var(--body); text-align: center; opacity: .9; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; padding: 10px; align-content: start; }
+.tiles .overall { grid-column: span 2; grid-row: span 2; display: flex; flex-direction: column; justify-content: space-between; }
+/* In a tile the name sits above the percentile, so neither has to squeeze. */
+.tiles .cat:not(.overall) .top { flex-direction: column; align-items: flex-start; gap: 2px; }
+.tiles .cat:not(.overall) .t { overflow-wrap: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Each category is its own rounded box, tinted and outlined in its tier's colour. */
-.cat { padding: 8px 12px 9px; margin: 8px 10px; border-radius: 8px;
+.cat { padding: 8px 10px 9px; border-radius: 8px; min-width: 0;
   border: 1px solid color-mix(in srgb, var(--tc, var(--avg)) 45%, var(--line));
   background: color-mix(in srgb, var(--tc, var(--avg)) 10%, var(--surface)); }
-.cat:last-child { margin-bottom: 10px; }
 .cat[data-tier="t-elite"] { --tc: var(--elite); } .cat[data-tier="t-good"] { --tc: var(--good); }
 .cat[data-tier="t-avg"] { --tc: var(--avg); } .cat[data-tier="t-weak"] { --tc: var(--weak); }
 .cat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.cat .t { font: 600 .84rem var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.cat .t { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; overflow-wrap: anywhere; }
 .cat .p { font: 700 1.55rem/1 var(--display); font-variant-numeric: tabular-nums; }
 .cat .sub { font-size: .74rem; color: var(--muted); margin-bottom: 5px; }
 .cat-fill { background: var(--elite); }
 .cat.overall { border-width: 2px; }
-.cat.overall .p { font-size: 2.1rem; }
-@media (max-width: 760px) {
-  .pair { grid-template-columns: 1fr; }
-  .side { position: static; order: -1; }
+.cat.overall .p { font-size: 3.2rem; }
+.cat.overall .t { font-size: 1rem; }
+@media (max-width: 640px) {
+  .side { grid-template-columns: 1fr; }
+  .side .who { flex-direction: row; align-items: center; }
+  .side .who .shot { width: 72px; height: 72px; margin: 0; }
+  .side .who .name, .side .who .line { text-align: left; }
+  .tiles .overall { grid-column: 1 / -1; grid-row: auto; }
 }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
-.band { background: var(--team); color: var(--team-ink); padding: 12px 14px 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
-.band .name { font: 700 1.65rem/1.02 var(--display); text-transform: uppercase; letter-spacing: .01em; grid-column: 1; text-wrap: balance; }
-.band .tag { grid-column: 2; grid-row: 1 / span 2; align-self: start; text-align: right; font: 600 .78rem/1.3 var(--display);
+.band { background: var(--team); color: var(--team-ink); padding: 10px 14px 0; display: grid;
+  grid-template-columns: auto 1fr auto; gap: 2px 14px; align-items: end; }
+.band .shot { grid-row: 1 / span 2; width: 92px; height: 92px; align-self: end; }
+.band .name { font: 700 1.9rem/1.02 var(--display); text-transform: uppercase; letter-spacing: .01em; grid-column: 2; text-wrap: balance; }
+.band .tag { grid-column: 3; grid-row: 1 / span 2; align-self: center; text-align: right; font: 600 .78rem/1.3 var(--display);
   letter-spacing: .08em; text-transform: uppercase; opacity: .92; }
 .band .tag b { display: block; font-size: 1.5rem; line-height: 1; letter-spacing: .02em; }
-.band .line { font: 600 .82rem var(--body); letter-spacing: .02em; opacity: .9; font-variant-numeric: tabular-nums; }
+.band .line { grid-column: 2; padding-bottom: 12px; font: 600 .82rem var(--body); letter-spacing: .02em; opacity: .9; font-variant-numeric: tabular-nums; }
 
 .head { display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 520px) { .head { grid-template-columns: auto 1fr; } .head > div:nth-child(3) { grid-column: 2; } }
@@ -87,10 +105,12 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .chip b { color: var(--elite); }
 .chip.worst b { color: var(--weak); }
 
-section { padding: 8px 14px 10px; }
-section + section { border-top: 1px dashed var(--line); }
+/* The individual microstats, a column per category (as many columns as fit). */
+.sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; padding: 12px 14px 14px; }
+section { padding: 8px 10px 9px; border: 1px solid var(--line); border-radius: 8px;
+  background: color-mix(in srgb, var(--track) 35%, var(--surface)); min-width: 0; }
 h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
-.row { display: grid; grid-template-columns: minmax(0, 1fr) 4.2em 72px 2.6em; gap: 8px; align-items: center; padding: 2px 0; font-size: .86rem; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 3.9em 48px 2.4em; gap: 6px; align-items: center; padding: 2px 0; font-size: .84rem; }
 .row .lab { overflow-wrap: anywhere; line-height: 1.25; }   /* full names wrap rather than being cut off */
 .row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .row .pct { text-align: right; font: 700 .95rem var(--display); font-variant-numeric: tabular-nums; }
@@ -218,6 +238,13 @@ function overall(c) {
     <span class="bar"><i class="cat-fill" style="width:${Math.max(pct, 1.5)}%"></i></span></div>`;
 }
 
+// The NHL's headshot for that season and team (the cut-out mug); a missing one hides itself.
+function headshot(c, cls = "shot") {
+  const y = parseInt(DATA.season, 10), team = c.team.split("/").pop();
+  return `<img class="${cls}" src="https://assets.nhle.com/mugs/nhl/${y}${y + 1}/${esc(team)}/${c.id}.png" alt=""
+    loading="lazy" onerror="this.style.visibility='hidden'">`;
+}
+
 function card(c) {
   const [team, ink] = TEAMS[c.team.split("/")[0]] || ["#33414d", "#fff"];
   const m = c.modes[state.mode];
@@ -240,10 +267,11 @@ function card(c) {
         <span class="bar"><i class="${tier(r.pct)}" style="width:${Math.max(r.pct, 1.5)}%"></i></span>
         <span class="pct">${ord(r.pct)}</span></div>`;
     }).join("");
-    return `<section>${title ? `<h3>${esc(title)}</h3>` : ""}${rows}</section>`;
+    return rows ? `<section>${title ? `<h3>${esc(title)}</h3>` : ""}${rows}</section>` : "";
   }).join("");
-  return `<div class="pair" style="--team:${team};--team-ink:${ink}"><article class="card">
+  const statCard = `<article class="card">
     <div class="band">
+      ${headshot(c)}
       <div class="name">${esc(c.name)}</div>
       <div class="tag"><b>${esc(c.team)}</b>${esc(POS[c.position] || c.position)}</div>
       <div class="line">${c.gp_played > c.gp ? `${c.gp} GP tracked (${c.gp_played} played)` : `${c.gp} GP`} · ${c.toi.toFixed(1)} TOI/GP · ${c.g}G ${c.a}A ${c.g + c.a}P</div>
@@ -254,14 +282,14 @@ function card(c) {
       <div><div class="cap">Best marks</div><div class="chips">${chips(signature, "best")}</div></div>
       <div><div class="cap">Worst marks</div><div class="chips">${chips(weakest, "worst")}</div></div>
     </div>
-    ${sections}
-  </article>
-  <aside class="card side" aria-label="${esc(c.name)} categories">
-    <div class="band"><div class="name">Categories</div>
-      <div class="line">${esc(c.name)} · ${state.mode === "5v5" ? "5v5" : "All situations"}</div></div>
-    ${overall(c)}
-    ${cats}
-  </aside></div>`;
+    <div class="sections">${sections}</div>
+  </article>`;
+  const strip = `<aside class="card side" aria-label="${esc(c.name)} categories">
+    <div class="who">${headshot(c)}<div class="name">${esc(c.name)}</div>
+      <div class="line">${esc(c.team)} · ${esc(POS[c.position] || c.position)} · ${state.mode === "5v5" ? "5v5" : "All situations"}</div></div>
+    <div class="tiles">${overall(c)}${cats}</div>
+  </aside>`;
+  return `<div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div>`;
 }
 
 function render() {
