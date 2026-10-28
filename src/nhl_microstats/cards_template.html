@@ -101,9 +101,10 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .chip b { color: var(--elite); }
 .chip.worst b { color: var(--weak); }
 
-/* The individual microstats, a box per category stacked into columns (as many as fit), each column
-   filled top to bottom so a short category never leaves a hole. */
-.sections { column-width: 240px; column-gap: 10px; padding: 12px 14px 4px; }
+/* The individual microstats, a box per category stacked into two columns (one on a phone), each
+   filled top to bottom and balanced to end at about the same height, so no category leaves a hole. */
+.sections { column-count: 2; column-fill: balance; column-gap: 10px; padding: 12px 14px 4px; }
+@media (max-width: 760px) { .sections { column-count: 1; } }
 section { padding: 8px 10px 9px; border: 1px solid var(--line); border-radius: 8px; margin: 0 0 10px;
   background: color-mix(in srgb, var(--track) 35%, var(--surface)); min-width: 0; break-inside: avoid; }
 h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
