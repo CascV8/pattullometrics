@@ -29,7 +29,7 @@ import pandas as pd
 import puckscrape as ps
 import pyarrow.parquet as pq
 
-from . import collect
+from . import collect, curves, db
 from .build import build_season
 from .site import OUT, code_hash, default_seasons, export_site
 
@@ -114,7 +114,11 @@ def update_once(season=None, out=OUT, deploy: str | None = None, force: bool = F
     played = _players_in(y, changed)
     collect.collect_edge(y, bios["player_id"], refresh=played)
     collect.collect_shot_speed(y, bios["player_id"], refresh=played)
+    # Register any stat added since the database was made (stat_defs, derived stats like TOI/GP), and
+    # fit curves for stats that have none yet, so a new stat reaches the site with the next update.
+    db.init()
     build_season(y)
+    curves.fit_missing()
     export_site(sorted({y, *default_seasons()}, reverse=True), out)   # past seasons come from the cache
     _save(site_code=code_hash())
     if deploy:
