@@ -203,7 +203,6 @@ const TEAMS = { ANA:["#f47a38","#111"], BOS:["#ffb81c","#111"], BUF:["#003087","
   OTT:["#c52032","#fff"], PHI:["#f74902","#111"], PIT:["#111111","#fcb514"], SJS:["#006d75","#fff"], SEA:["#001628","#99d9d9"],
   STL:["#002f87","#fff"], TBL:["#002868","#fff"], TOR:["#00205b","#fff"], UTA:["#0b162a","#6cace4"], VAN:["#00205b","#fff"],
   VGK:["#b4975a","#111"], WSH:["#c8102e","#fff"], WPG:["#041e42","#fff"] };
-const POS = { C: "Centre", L: "Left wing", R: "Right wing", D: "Defense" };
 
 // Units and precision per stat. Rates in 5v5 mode, counts in all-sit mode.
 const EDGE_FIXED = { max_skating_speed: " mph", shot_strength: " mph", oz_time_pct: "%" };
@@ -270,8 +269,8 @@ function card(c) {
   const statCard = `<article class="card">
     <div class="band">
       <div class="name">${esc(c.name)}</div>
-      <div class="tag"><b>${esc(c.team)}</b>${esc(POS[c.position] || c.position)}</div>
-      <div class="line">${c.gp_played > c.gp ? `${c.gp} GP tracked (${c.gp_played} played)` : `${c.gp} GP`} · ${c.toi.toFixed(1)} TOI/GP · ${c.g}G ${c.a}A ${c.g + c.a}P</div>
+      <div class="tag"><b>${esc(c.team)}</b>${esc(c.group)}</div>
+      <div class="line">${c.gp_played > c.gp ? `${c.gp} GP tracked (${c.gp_played} played)` : `${c.gp} GP`} · ${c.g}G ${c.a}A ${c.g + c.a}P</div>
     </div>
     <div class="head">
       <div>${m[DATA.headline] ? `<div class="big">${m[DATA.headline].v.toFixed(1)}<small>%</small></div>
@@ -283,7 +282,7 @@ function card(c) {
   </article>`;
   const strip = `<aside class="card side" aria-label="${esc(c.name)} categories">
     <div class="who">${headshot(c)}<div><div class="name">${esc(c.name)}</div>
-      <div class="line">${esc(c.team)} · ${esc(POS[c.position] || c.position)} · ${state.mode === "5v5" ? "5v5" : "All situations"}</div></div></div>
+      <div class="line">${esc(c.team)} · ${esc(c.group)} · ${state.mode === "5v5" ? "5v5" : "All situations"}</div></div></div>
     <div class="tiles">${overall(c)}${cats}</div>
   </aside>`;
   return `<div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div>`;
