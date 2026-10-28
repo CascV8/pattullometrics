@@ -47,6 +47,12 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .grid { display: grid; grid-template-columns: minmax(0, 1240px); gap: 28px; align-items: start; }
 /* Each player is a pair: the compact categories card, and the stat card beside it (under it on a phone). */
 .pair { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; }
+/* Download buttons above each pair (not part of the image). */
+.card-tools { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+.card-tools button { font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.card-tools button:disabled { opacity: .6; cursor: progress; }
+.capturing .side { position: static; }
 
 /* Headshot (categories card only): the NHL's cut-out mug over the team colour. A missing one leaves the space. */
 .shot { display: block; object-fit: cover; object-position: top; }
@@ -235,6 +241,67 @@ function overall(c) {
     <span class="bar"><i class="${tier(pct)}" style="width:${Math.max(pct, 1.5)}%"></i></span></div>`;
 }
 
+// The page's Google web fonts as inline CSS for html-to-image, which can't read the cross-origin stylesheet
+// itself (the picture would fall back to wider system fonts and clip). Latin subsets only, fetched once.
+let fontCSS = null;
+async function embeddedFonts() {
+  if (fontCSS !== null) return fontCSS;
+  let out = "";
+  for (const link of document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"]')) {
+    const css = await (await fetch(link.href)).text();
+    for (const [, subset, face] of css.matchAll(/\/\* ([\w-]+) \*\/\s*(@font-face\s*\{[^}]*\})/g)) {
+      const url = face.match(/url\((https:[^)]+)\)/)?.[1];
+      if (!url || (subset !== "latin" && subset !== "latin-ext")) continue;
+      const blob = await (await fetch(url)).blob();
+      const data = await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+      out += face.replace(url, data) + "\n";
+    }
+  }
+  return (fontCSS = out);
+}
+
+// Download a player's cards as a PNG (html-to-image, loaded on first use). NHL headshots come without CORS
+// headers, so for the capture they're swapped for copies relayed through the site's api/img; if that isn't
+// there (a card file opened on its own), the picture is drawn without the headshot.
+let htmlToImage = null;
+async function downloadCards(button) {
+  const pair = button.closest(".card-tools").nextElementSibling;
+  const node = button.dataset.what === "side" ? pair.querySelector(".side") : pair;
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Rendering…";
+  const swapped = [];
+  try {
+    htmlToImage ??= await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm");
+    for (const img of node.querySelectorAll("img")) {
+      const src = img.currentSrc || img.src;
+      if (!src || /^(data|blob):/.test(src) || new URL(src).origin === location.origin) continue;
+      try {
+        const r = await fetch(`api/img?u=${encodeURIComponent(src)}`);
+        if (!r.ok) throw new Error(r.status);
+        swapped.push([img, src]);
+        img.src = URL.createObjectURL(await r.blob());
+        await img.decode().catch(() => {});
+      } catch (e) { swapped.push([img, src, img.style.visibility]); img.style.visibility = "hidden"; }
+    }
+    pair.classList.add("capturing");
+    const url = await htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: false, fontEmbedCSS: await embeddedFonts().catch(() => undefined),
+      backgroundColor: getComputedStyle(document.body).backgroundColor });
+    Object.assign(document.createElement("a"), { href: url, download: `${button.dataset.file}.png` }).click();
+  } catch (err) {
+    alert(`Couldn't make the image (${err.message || err}).`);
+  } finally {
+    pair.classList.remove("capturing");
+    for (const [img, src, vis] of swapped) {
+      if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+      img.src = src;
+      if (vis !== undefined) img.style.visibility = vis;
+    }
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
 // The NHL's headshot for that season and team (the cut-out mug); a missing one hides itself.
 function headshot(c, cls = "shot") {
   const y = parseInt(DATA.season, 10), team = c.team.split("/").pop();
@@ -285,7 +352,11 @@ function card(c) {
       <div class="line">${esc(c.team)} · ${esc(c.group)} · ${state.mode === "5v5" ? "5v5" : "All situations"}</div></div></div>
     <div class="tiles">${overall(c)}${cats}</div>
   </aside>`;
-  return `<div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div>`;
+  const file = c.name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") + `-${DATA.season}`;
+  return `<div><div class="card-tools">
+      <button type="button" class="dl" data-what="pair" data-file="${esc(file)}-microstats">Download cards</button>
+      <button type="button" class="dl" data-what="side" data-file="${esc(file)}-categories">Categories card</button></div>
+    <div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div></div>`;
 }
 
 function render() {
@@ -361,6 +432,7 @@ document.getElementById("pool").textContent =
 document.getElementById("gt-note").hidden = !Object.values(DATA.sections).flat().some(s => s.startsWith("gt_"));
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
+  if (b.classList.contains("dl")) return downloadCards(b);   // no re-render: it would replace the card mid-capture
   if (b.dataset.mode) state.mode = b.dataset.mode;
   if (b.dataset.pos) state.pos = b.dataset.pos;
   render();
