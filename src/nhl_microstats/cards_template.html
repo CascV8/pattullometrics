@@ -45,27 +45,32 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
 
 .grid { display: grid; grid-template-columns: minmax(0, 1240px); gap: 28px; align-items: start; }
-/* Each player is a pair: the compact categories card, and the stat card beside it (under it on a phone). */
-.pair { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; }
+/* Each player is a pair: the compact categories card, and the stat card beside it (under it on a phone).
+   The stat card is as wide as its content (the width at which no stat name wraps) and the categories
+   card stretches to the same height. */
+.pair { display: grid; grid-template-columns: 340px minmax(0, max-content); gap: 10px; align-items: stretch; justify-content: start; min-width: 0; }
+.player { width: fit-content; max-width: 100%; min-width: 0; }   /* the buttons line up with the cards' right edge */
 /* Download buttons above each pair (not part of the image). */
 .card-tools { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
 .card-tools button { font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
   border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
 .card-tools button:disabled { opacity: .6; cursor: progress; }
-.capturing .side { position: static; }
 
 /* Headshot (categories card only): the NHL's cut-out mug over the team colour. A missing one leaves the space. */
 .shot { display: block; object-fit: cover; object-position: top; }
 
 /* Categories card: the same compact card at every width. The player (headshot, name) on top, then
    Overall across the full width and a tile per category, two to a row, each with its bar. */
-.side { position: sticky; top: 12px; }
+.side { display: flex; flex-direction: column; }
 .side .who { background: var(--team); color: var(--team-ink); padding: 10px 12px; display: flex; align-items: center; gap: 12px; }
 .side .who .shot { width: 72px; height: 72px; border-radius: 50%; flex: none;
   background: color-mix(in srgb, var(--team-ink) 14%, transparent); border: 3px solid color-mix(in srgb, var(--team-ink) 40%, transparent); }
 .side .who .name { font: 700 1.3rem/1.02 var(--display); text-transform: uppercase; text-wrap: balance; }
 .side .who .line { font: 600 .78rem var(--body); opacity: .9; }
-.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; flex: 1; }
+/* The tiles share out the card's height; each keeps its name on top and its bar at the bottom. */
+.tiles .cat { display: flex; flex-direction: column; }
+.tiles .cat .bar { margin-top: auto; }
 .tiles .overall { grid-column: 1 / -1; }
 /* In a tile the name sits above the percentile, so neither has to squeeze. */
 .tiles .cat:not(.overall) .top { flex-direction: column; align-items: flex-start; gap: 2px; }
@@ -84,9 +89,10 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .cat.overall { border-width: 2px; }
 .cat.overall .p { font-size: 3.2rem; }
 .cat.overall .t { font-size: 1rem; }
-@media (max-width: 760px) {
-  .pair { grid-template-columns: minmax(0, 1fr); }
-  .side { position: static; max-width: 420px; }
+/* Too narrow for the pair side by side without wrapping stat names: the categories card goes on top */
+@media (max-width: 1240px) {
+  .pair { grid-template-columns: minmax(0, max-content); }
+  .side { max-width: 420px; }
 }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
@@ -97,7 +103,8 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .band .tag b { display: block; font-size: 1.5rem; line-height: 1; letter-spacing: .02em; }
 .band .line { font: 600 .82rem var(--body); letter-spacing: .02em; opacity: .9; font-variant-numeric: tabular-nums; }
 
-.head { display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.head { display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line);
+  contain: inline-size; }   /* the chips wrap to the card's width rather than setting it */
 @media (max-width: 520px) { .head { grid-template-columns: auto 1fr; } .head > div:nth-child(3) { grid-column: 2; } }
 .big { font: 700 2.5rem/1 var(--display); font-variant-numeric: tabular-nums; }
 .big small { font-size: 1.1rem; }
@@ -107,12 +114,13 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .chip b { color: var(--elite); }
 .chip.worst b { color: var(--weak); }
 
-/* The individual microstats, a box per category stacked into two columns (one on a phone), each
-   filled top to bottom and balanced to end at about the same height, so no category leaves a hole. */
-.sections { column-count: 2; column-fill: balance; column-gap: 10px; padding: 12px 14px 4px; }
-@media (max-width: 760px) { .sections { column-count: 1; } }
+/* The individual microstats, a box per category stacked into two columns (one on a phone), split to
+   end at about the same height. Each column is as wide as its longest stat name needs, no wider. */
+.sections { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 10px; padding: 12px 14px 4px; align-items: start; }
+/* Too narrow for two columns without wrapping names: one */
+@media (max-width: 860px) { .sections { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 section { padding: 8px 10px 9px; border: 1px solid var(--line); border-radius: 8px; margin: 0 0 10px;
-  background: color-mix(in srgb, var(--track) 35%, var(--surface)); min-width: 0; break-inside: avoid; }
+  background: color-mix(in srgb, var(--track) 35%, var(--surface)); min-width: 0; }
 h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
 .row { display: grid; grid-template-columns: minmax(0, 1fr) 3.9em 48px 2.4em; gap: 6px; align-items: center; padding: 2px 0; font-size: .84rem; }
 .row .lab { overflow-wrap: anywhere; line-height: 1.25; }   /* full names wrap rather than being cut off */
@@ -322,7 +330,7 @@ function card(c) {
   const signature = marks.slice(0, 3), weakest = marks.slice(-3).reverse();
   const chips = (list, cls) => list.map(([s, r]) =>
     `<span class="chip ${cls}"><b>${ord(r.pct)}</b> ${esc(DATA.labels[s])}</span>`).join("");
-  const sections = Object.entries(DATA.sections).map(([title, stats]) => {
+  const boxes = Object.entries(DATA.sections).map(([title, stats]) => {
     const rows = stats.filter(s => m[s]).map(s => {
       const r = m[s];
       return `<div class="row" title="${esc(DATA.labels[s])}: ${ord(r.pct)} percentile">
@@ -331,8 +339,17 @@ function card(c) {
         <span class="bar"><i class="${tier(r.pct)}" style="width:${Math.max(r.pct, 1.5)}%"></i></span>
         <span class="pct">${ord(r.pct)}</span></div>`;
     }).join("");
-    return rows ? `<section>${title ? `<h3>${esc(title)}</h3>` : ""}${rows}</section>` : "";
-  }).join("");
+    const n = stats.filter(s => m[s]).length;
+    return n ? [`<section>${title ? `<h3>${esc(title)}</h3>` : ""}${rows}</section>`, n + 2] : null;   // + header and padding, in rows
+  }).filter(Boolean);
+  // Two columns, in order, split where their heights come closest
+  const total = boxes.reduce((t, [, h]) => t + h, 0);
+  let split = 0, best = Infinity;
+  for (let i = 0, run = 0; i <= boxes.length; run += boxes[i] ? boxes[i][1] : 0, i++) {
+    if (Math.abs(total - 2 * run) < best) { best = Math.abs(total - 2 * run); split = i; }
+  }
+  const column = list => `<div>${list.map(([html]) => html).join("")}</div>`;
+  const sections = column(boxes.slice(0, split)) + column(boxes.slice(split));
   const statCard = `<article class="card">
     <div class="band">
       <div class="name">${esc(c.name)}</div>
@@ -353,7 +370,7 @@ function card(c) {
     <div class="tiles">${overall(c)}${cats}</div>
   </aside>`;
   const file = c.name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") + `-${DATA.season}`;
-  return `<div><div class="card-tools">
+  return `<div class="player"><div class="card-tools">
       <button type="button" class="dl" data-what="pair" data-file="${esc(file)}-microstats">Download cards</button>
       <button type="button" class="dl" data-what="side" data-file="${esc(file)}-categories">Categories card</button></div>
     <div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div></div>`;
