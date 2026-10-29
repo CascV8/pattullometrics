@@ -34,6 +34,7 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
+import puckscrape as ps
 import pyarrow.parquet as pq
 from puckscrape._util import start_year
 
@@ -94,7 +95,8 @@ def _export_season(y: int, folder: Path) -> dict:
     (folder / "players").mkdir(parents=True)
     for c in cards:
         (folder / "players" / f"{c['id']}.json").write_text(json.dumps(d | {"site": True, "cards": [c]}), encoding="utf-8")
-    (folder / "index.json").write_text(json.dumps(d | {"rows": [_index_row(c) for c in cards]}), encoding="utf-8")
+    bios = _bios(y)
+    (folder / "index.json").write_text(json.dumps(d | {"rows": [_index_row(c, bios.get(c["id"])) for c in cards]}), encoding="utf-8")
     n_goalies = _export_goalies(y, not d["early"], folder)
     return {"season": y, "name": season_name([y]), "early": d["early"], "players": len(cards), "goalies": n_goalies}
 
@@ -107,6 +109,8 @@ def _export_goalies(y: int, complete: bool, folder: Path) -> int:
         log.warning("%s: no goalie stats (%s)", y, e)
         return 0
     rows = goalies.goalie_ratings(df, complete, goalies.load_xg(y))
+    bios = _bios(y, goalie=True)
+    rows = [r | bios.get(r["id"], {}) for r in rows]
     (folder / "goalies.json").write_text(json.dumps({"season": y, "name": season_name([y]), "early": not complete,
                                                      **goalies.season_meta(df, complete), "goalies": rows}), encoding="utf-8")
     return len(rows)
@@ -123,15 +127,33 @@ def games_status(y: int) -> dict:
     return {"games": len(list(folder.glob("*_pbp.parquet"))), "awaiting_shifts": missing}
 
 
-def _index_row(c: dict) -> dict:
-    """The few numbers the directory shows, per mode."""
+def _bios(y: int, goalie: bool = False) -> dict:
+    """Birth date, nationality, shooting side, draft (year, round, overall) and whether it's his first NHL
+    season, by NHL id, from the NHL's bios report for the season; {} if the report can't be had."""
+    try:
+        df = (ps.nhl.goalie_stats if goalie else ps.nhl.skater_stats)(y, report="bios")
+    except Exception as e:   # the directory's filters are an extra
+        log.warning("%s: no bios (%s)", y, e)
+        return {}
+    num = lambda v: int(v) if isinstance(v, (int, float)) and v == v else None
+    text = lambda v: v if isinstance(v, str) else ""   # a blank comes through as NaN, which isn't JSON
+    return {int(r["player_id"]): {
+        "born": text(r.get("birth_date")) or None, "nat": text(r.get("nationality_code")) or text(r.get("birth_country_code")),
+        "shoots": text(r.get("shoots_catches")),
+        "draft": [num(r.get("draft_year")), num(r.get("draft_round")), num(r.get("draft_overall"))] if num(r.get("draft_round")) else None,
+        "first": num(r.get("first_season_for_game_type")) == y * 10001 + 1}
+        for r in df.to_dict("records") if r.get("player_id") == r.get("player_id")}
+
+
+def _index_row(c: dict, bio: dict | None = None) -> dict:
+    """The few numbers the directory shows, per mode, and his bio for its filters."""
     modes = {}
     for mode in MODES:
         o = (c.get("overall") or {}).get(mode)
         modes[mode] = {"overall": [o[2], o[0]] if o else None,
                        "cats": {title: [pct, avg] for title, avg, _, pct in c["categories"][mode]}}
     return {"id": c["id"], "name": c["name"], "team": c["team"], "pos": c["position"], "group": c["group"],
-            "gp": c["gp"], "toi": c["toi"], "g": c["g"], "a": c["a"], "modes": modes}
+            "gp": c["gp"], "toi": c["toi"], "g": c["g"], "a": c["a"], "modes": modes, **(bio or {})}
 
 
 def export_site(seasons=None, out: Path | str = OUT) -> Path:

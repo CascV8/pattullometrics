@@ -39,6 +39,11 @@ input, select { font: 600 .9rem var(--body); color: var(--ink); background: var(
   border-radius: 6px; padding: 6px 8px; }
 input[type="search"] { width: min(260px, 100%); }
 input[type="number"] { width: 4.5em; }
+input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.range { display: inline-flex; gap: 4px; align-items: center; }
+.clear { font: 600 .78rem var(--body); text-transform: uppercase; letter-spacing: .03em; color: var(--accent);
+  background: none; border: 0; padding: 6px 2px; cursor: pointer; }
+.clear[hidden] { display: none; }
 label { display: inline-flex; gap: 6px; align-items: center; font: 600 .78rem var(--body); text-transform: uppercase;
   letter-spacing: .03em; color: var(--muted); }
 button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -102,6 +107,14 @@ td a:hover { text-decoration: underline; }
     </div>
     <label for="team">Team <select id="team"><option value="">All</option></select></label>
     <label for="mingp">Min GP <input type="number" id="mingp" min="0" value="10"></label>
+    <label for="agemin">Age <span class="range"><input type="number" id="agemin" min="16" max="50" placeholder="min" aria-label="Minimum age">–<input
+      type="number" id="agemax" min="16" max="50" placeholder="max" aria-label="Maximum age"></span></label>
+    <label for="nat">Nation <select id="nat"><option value="">All</option></select></label>
+    <label for="shoots">Shoots <select id="shoots"><option value="">Any</option><option value="L">Left</option><option value="R">Right</option></select></label>
+    <label for="draft">Draft <select id="draft"><option value="">Any</option><option value="1">1st round</option>
+      <option value="2">2nd round</option><option value="3">3rd round or later</option><option value="none">Undrafted</option></select></label>
+    <label for="first"><input type="checkbox" id="first"> First NHL season</label>
+    <button type="button" class="clear" id="clear" hidden>Clear filters</button>
   </div>
 
   <div class="table"><table>
@@ -133,13 +146,35 @@ const pctCell = p => p == null || !isFinite(p) ? `<span class="dim">–</span>`
   : `<span class="pct ${tier(p)}">${Math.min(Math.max(Math.round(p), 1), 99)}</span>`;
 
 const MIN_GP = 10;   // default sample-size filter; visitors can lower it
-const state = { season: null, pos: "all", mode: "5v5", q: "", team: "", mingp: MIN_GP, sort: "p", dir: -1, gsort: "overall", gdir: -1 };
+const FILTERS = { team: "", mingp: MIN_GP, agemin: "", agemax: "", nat: "", shoots: "", draft: "", first: false };
+const state = { season: null, pos: "all", mode: "5v5", q: "", ...FILTERS, sort: "p", dir: -1, gsort: "overall", gdir: -1 };
 try { Object.assign(state, JSON.parse(localStorage.getItem("site-state") || "{}"), { q: "" }); } catch (e) {}
 // ?pos=F|D|all and ?season= (from the goalies table's buttons) win over the remembered view
 { const u = new URLSearchParams(location.search);
   if (["all", "F", "D", "G"].includes(u.get("pos"))) state.pos = u.get("pos");
   if (/^\d{4}$/.test(u.get("season") || "")) state.season = +u.get("season"); }
 let META, DATA, GDATA, CATS = [];
+
+// Age in the season: on February 1 of its second year (as hockey reference sites count it), to two decimals for sorting
+const age = r => r.born ? (Date.UTC(state.season + 1, 1, 1) - Date.parse(r.born)) / (365.2425 * 864e5) : null;
+const ageCol = { key: "age", label: "Age", get: r => age(r) ?? -1, cell: r => r.born ? Math.floor(age(r)) : `<span class="dim">–</span>` };
+const NAT = { CAN: "Canada", USA: "USA", SWE: "Sweden", FIN: "Finland", RUS: "Russia", CZE: "Czechia", SVK: "Slovakia",
+  CHE: "Switzerland", DEU: "Germany", DNK: "Denmark", NOR: "Norway", LVA: "Latvia", AUT: "Austria", FRA: "France",
+  SVN: "Slovenia", BLR: "Belarus", UKR: "Ukraine", KAZ: "Kazakhstan", GBR: "Great Britain", NLD: "Netherlands", AUS: "Australia" };
+// The bio filters; a player the NHL has no bio for passes only when they're all off
+function bioMatch(r) {
+  const a = age(r);
+  if ((state.agemin !== "" || state.agemax !== "") && a == null) return false;
+  if (state.agemin !== "" && Math.floor(a) < +state.agemin) return false;
+  if (state.agemax !== "" && Math.floor(a) > +state.agemax) return false;
+  if (state.nat && r.nat !== state.nat) return false;
+  if (state.shoots && r.shoots !== state.shoots) return false;
+  if (state.draft === "none" && r.draft !== null) return false;   // undrafted: a bio with no draft
+  if (state.draft && state.draft !== "none" && !(r.draft && (state.draft === "3" ? r.draft[1] >= 3 : r.draft[1] === +state.draft))) return false;
+  if (state.first && !r.first) return false;
+  return true;
+}
+const filtersOn = () => Object.entries(FILTERS).some(([k, v]) => state[k] !== v);
 
 // Goalies (data/<season>/goalies.json): the same table, its own columns. Values in boxes coloured by percentile.
 const GFMT = { gsax_gp: v => (v >= 0 ? "+" : "") + v.toFixed(2), sv: v => v.toFixed(3).replace(/^0/, ""), ga_gp: v => v.toFixed(2) };
@@ -150,6 +185,7 @@ const goalieCols = () => [
     cell: g => `<a href="goalie.html?season=${state.season}&id=${g.id}">${esc(g.name)}</a>` },
   { key: "team", label: "Team", cls: "l", get: g => g.team, cell: g => esc(g.team) },
   { key: "pos", label: "Pos", cls: "l", get: g => "G", cell: () => "G" },
+  ageCol,
   { key: "gp", label: "GP", get: g => g.gp, cell: g => g.gp },
   { key: "rec", label: "W-L-OTL", get: g => [g.w, -g.l], cell: g => `${g.w}-${g.l}-${g.otl}` },
   { key: "overall", label: "Ovr", full: "Overall", cls: "c", get: g => [g.overall ?? -1, g.gp], cell: g => pctCell(g.overall) },
@@ -165,6 +201,7 @@ const cols = () => [
     cell: r => `<a href="player.html?season=${state.season}&id=${r.id}">${esc(r.name)}</a>` },
   { key: "team", label: "Team", cls: "l", get: r => r.team, cell: r => esc(r.team) },
   { key: "pos", label: "Pos", cls: "l", get: r => r.pos, cell: r => esc(r.pos) },
+  ageCol,
   { key: "gp", label: "GP", get: r => r.gp, cell: r => r.gp },
   { key: "toi", label: "TOI/GP", get: r => r.toi, cell: r => r.toi.toFixed(1) },
   { key: "p", label: "P", get: r => [r.g + r.a, r.g, ...sample(r)], cell: r => `${r.g + r.a} <span class="dim">(${r.g}G)</span>` },
@@ -181,13 +218,13 @@ function render() {
   for (const b of document.querySelectorAll("[data-mode]")) b.setAttribute("aria-pressed", b.dataset.mode === state.mode);
   const G = state.pos === "G", sortKey = G ? "gsort" : "sort", dirKey = G ? "gdir" : "dir";
   $("mode-seg").style.visibility = G ? "hidden" : "";   // 5v5 / all situations is for skaters; hidden in place, so nothing moves
-  const c = G ? goalieCols() : cols(), col = c.find(x => x.key === state[sortKey]) || c[5];
+  const c = G ? goalieCols() : cols(), col = c.find(x => x.key === state[sortKey]) || c[6];
   $("head").innerHTML = c.map(x => `<th class="${x.cls || ""}" data-key="${x.key}" scope="col"${x.full ? ` title="${esc(x.full)}"` : ""}
     ${x.key === col.key ? `aria-sort="${state[dirKey] < 0 ? "descending" : "ascending"}"` : ""}>${esc(x.label)}</th>`).join("");
   const q = state.q.trim().toLowerCase();
   const source = G ? goalieRows() : DATA.rows;
   const rows = source.filter(r => (G || state.pos === "all" || r.group === state.pos) && r.gp >= state.mingp
-      && (!state.team || r.team.split("/").includes(state.team))
+      && (!state.team || r.team.split("/").includes(state.team)) && bioMatch(r)
       && (!q || r.name.toLowerCase().includes(q) || r.team.toLowerCase().includes(q)))
     .sort((a, b) => { const x = col.get(a), y = col.get(b);
       return (typeof x === "string" ? x.localeCompare(y) : Array.isArray(x) ? byKey(x, y) : x - y) * state[dirKey]; });
@@ -196,6 +233,7 @@ function render() {
          && !source.some(r => r.gp >= state.mingp)
          ? `No one has ${state.mingp}+ games yet this season. Lower <b>Min GP</b> to see everyone (small samples swing a lot).`
          : G && !source.length ? "No goalie stats for this season." : "No players match."}</td></tr>`;
+  $("clear").hidden = !filtersOn();
   status();
   try { localStorage.setItem("site-state", JSON.stringify(state)); } catch (e) {}
 }
@@ -222,6 +260,11 @@ async function loadSeason(y) {
   $("team").innerHTML = `<option value="">All</option>` + teams.map(t => `<option>${esc(t)}</option>`).join("");
   if (!teams.includes(state.team)) state.team = "";
   $("team").value = state.team;
+  const nats = [...new Set([...DATA.rows, ...goalieRows()].map(r => r.nat).filter(Boolean))]
+    .sort((a, b) => (NAT[a] || a).localeCompare(NAT[b] || b));
+  $("nat").innerHTML = `<option value="">All</option>` + nats.map(n => `<option value="${esc(n)}">${esc(NAT[n] || n)}</option>`).join("");
+  if (state.nat && !nats.includes(state.nat)) state.nat = "";
+  showFilters();
   render();
 }
 
@@ -243,6 +286,15 @@ document.addEventListener("click", e => {
 $("q").addEventListener("input", e => { state.q = e.target.value; render(); });
 $("team").addEventListener("change", e => { state.team = e.target.value; render(); });
 $("mingp").addEventListener("input", e => { state.mingp = +e.target.value || 0; render(); });
+for (const k of ["agemin", "agemax"]) $(k).addEventListener("input", e => { state[k] = e.target.value === "" ? "" : +e.target.value; render(); });
+for (const k of ["nat", "shoots", "draft"]) $(k).addEventListener("change", e => { state[k] = e.target.value; render(); });
+$("first").addEventListener("change", e => { state.first = e.target.checked; render(); });
+$("clear").addEventListener("click", () => { Object.assign(state, FILTERS); showFilters(); render(); });
+// Put the filter controls in step with state (after loading, or clearing)
+function showFilters() {
+  for (const k of ["team", "mingp", "agemin", "agemax", "nat", "shoots", "draft"]) $(k).value = state[k];
+  $("first").checked = state.first;
+}
 $("season").addEventListener("change", e => loadSeason(+e.target.value));
 
 fetch("data/meta.json").then(r => r.json()).then(m => {
