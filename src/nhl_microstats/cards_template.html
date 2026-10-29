@@ -132,8 +132,6 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
 
 .t-elite { background: var(--elite) } .t-good { background: var(--good) } .t-avg { background: var(--avg) } .t-weak { background: var(--weak) }
 
-footer { margin-top: 28px; color: var(--muted); font-size: .86rem; max-width: 80ch; display: grid; gap: 8px; }
-footer p { margin: 0; }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .35s ease; } }
 </style>
 
@@ -170,40 +168,6 @@ footer p { margin: 0; }
 
   <div class="grid" id="grid"></div>
 
-  <footer>
-    <p id="pool"></p>
-    <p><b>Rush</b>: the puck was recorded outside the attacking zone in the previous 8 s with no faceoff since.
-      The NHL logs no zone entries, so play-by-play only catches about 6% of attempts as rush (video tracking finds 20–30%).
-      Rush percentiles rest on small counts. <b>Cycle</b>: 10+ s of in-zone play since the last exit or faceoff, not a rebound or rush.</p>
-    <p>Most on-ice results (shots, xG and goals for and against while he's on the ice) are left off, with four exceptions.
-      <b>xGF%</b> (the headline number) and <b>Fenwick %</b>: his team's share of xG and of unblocked shot attempts while
-      he's on the ice. <b>Goals against on/off ice %</b>: goals against per 60 with him on the ice as a % of his team's
-      goals against per 60 with him off it, in the same games; 100 means no different and lower is better. Goals are rare,
-      so it swings a lot over a few games. <b>xG against on/off ice %</b>: the same for xG against,
-      at 5v5 in both views; it settles much faster than the goals version.
-      <b>Takeaways</b>: scorers started logging far fewer takeaways in 2024-25, so takeaways rank each season
-      against its own season, and a season in progress against the latest complete one.
-      <b>Penalties</b>: minors and majors, not
-      fighting majors or misconducts; fights are counted on their own under Physicality.</p>
-    <p><b>Average xGF% of opponents</b> (quality of competition): the 5v5 xGF% of the opposing skaters he was on the ice against, weighted by the 5v5
-      time they shared (each opponent at his actual season xGF%). Higher means tougher
-      opponents; it's 5v5 in both views. Most players land within a point or two of 50%, so small gaps move the percentile a lot.</p>
-    <p><b>Categories</b>: each section's stat percentiles are averaged ("avg"), and that average is then ranked like any
-      other stat: every qualified player-season in the comparison pool gets the same average, and a logistic curve fitted to
-      those averages (forwards and defense separately) turns his into a percentile. An average of percentiles bunches toward
-      the middle, so an average of 70 can be a 90th-percentile category. <b>Overall</b> does the same one level up: a
-      weighted average of his category percentiles, ranked by a curve fitted to every pool player-season's weighted
-      average. Forwards: Offence, Finishing and Play driving ×3, Defence ×2, Penalties ×1, Speed and Physicality ×½.
-      Defensemen: Play driving and Defence ×3, Offence ×2, Finishing and Penalties ×1, Speed, Physicality and
-      Competition ×½. Competition (who he played against, and his ice time per game) doesn't count for forwards.</p>
-    <p>Not available from NHL data: passes, shot assists, zone entries and exits, entry denials, retrievals.</p>
-    <p id="gt-note" hidden><b>Goal tracking</b>: from the NHL's puck and player tracking of the ~14 s before each goal, the data behind
-      nhl.com's goal replays. It only exists for goals, so these count what a player did in the build-up to his team's goals:
-      time with the puck, carries over the offensive blue line, defenders beaten (an opponent within 10 ft who was ahead of
-      the carrier and ends up behind him), dekes (the puck swinging 2.5+ ft across his body within 0.5 s with an opponent
-      or the goalie within 10 ft; not checked against video). On the other side: beaten on goals against.
-      Possession is inferred from the puck staying within 5 ft of a skater and moving with him. The NHL has this tracking from 2023-24 on.</p>
-  </footer>
 </div>
 
 <script>
@@ -442,11 +406,6 @@ if (early) {
     `by 20 points this early. Edge numbers are ${esc(DATA.season)} tracking so far, and top speed is a season maximum that only climbs as games are added.`;
   note.hidden = false;
 }
-document.getElementById("pool").textContent =
-  `Percentiles compare each player with every ${DATA.vs_season} player-season at the same position (forwards or defense) ` +
-  `with ${DATA.min_toi["5v5"]}+ minutes at 5v5 (5v5 per 60) or ${DATA.min_toi.all}+ minutes in all situations. Every count is a rate per 60 minutes, and percentiles come from logistic curves fitted to each pool. ` +
-  `Edge stats are all situations in both views. xG is from a custom expected-goals model.`;
-document.getElementById("gt-note").hidden = !Object.values(DATA.sections).flat().some(s => s.startsWith("gt_"));
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.classList.contains("dl")) return downloadCards(b);   // no re-render: it would replace the card mid-capture

@@ -72,7 +72,6 @@ td a:hover { text-decoration: underline; }
 .t-avg { color: var(--ink); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted); margin: 12px 0 0; }
 .legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
-footer { margin-top: 20px; color: var(--muted); font-size: .86rem; max-width: 80ch; }
 </style>
 </head>
 <body>
@@ -116,7 +115,6 @@ footer { margin-top: 20px; color: var(--muted); font-size: .86rem; max-width: 80
     <span>Ovr = Overall, Fin = Finishing, PD = Play driving, Off = Offence, Def = Defence, Pen = Penalties, Spd = Speed, Comp = Competition, Phys = Physicality.</span>
     <span>Overall is a weighted average of the category percentiles, ranked with its own curve: forwards weight Offence, Finishing and Play driving most; defensemen Play driving, Defence and Offence. Speed and Physicality count least. Ties on a percentile sort by points per game. Category percentiles rank each player against every qualified player-season at his position from the comparison seasons. Click a player for his full card.</span>
   </div>
-  <footer id="foot"></footer>
 </div>
 
 <script>
@@ -216,12 +214,6 @@ async function loadSeason(y) {
     skaters: `<b>${s.players}</b> skaters` + (s.games != null ? ` · <b>${s.games}</b> games` : "") +
       (s.awaiting_shifts.length ? ` · ${s.awaiting_shifts.length} awaiting NHL shift charts (left out until posted)` : "") + when,
     goalies: `<b>${GDATA?.goalies?.length ?? 0}</b> goalies` + (GDATA?.league_sv ? ` · league SV% ${GDATA.league_sv.toFixed(3).replace(/^0/, "")}` : "") + when,
-    skFoot: `Percentiles compare each player with every ${DATA.vs_season} player-season at his position ` +
-      `with ${DATA.min_toi["5v5"]}+ minutes at 5v5 or ${DATA.min_toi.all}+ in all situations. Players below that still get ` +
-      `percentiles, from the same curves. Data: NHL play-by-play, shift charts and NHL Edge.`,
-    gFoot: GDATA ? `Goalie percentiles are curved against the ${GDATA.pool} goalies with ${GDATA.min_gp}+ games this ` +
-      `season (hover a box for the stat itself). GSAx/GP: goals saved above expected (the xG of the unblocked shots faced, minus the goals on them), per game. Ovr averages the three percentiles, ` +
-      `curved against the same goalies, so 50 is a median goalie. Data: the NHL's goalie stats.` : "",
   };
   $("early").hidden = !DATA.early;
   $("early").innerHTML = `<b>Season in progress.</b> ${esc(DATA.season)} numbers are ranked against full seasons from ` +
@@ -233,13 +225,12 @@ async function loadSeason(y) {
   render();
 }
 
-// the status line and footnote follow the view: skaters or goalies
+// the status line follows the view: skaters or goalies
 let STATUS = null;
 function status() {
   if (!STATUS) return;
   const G = state.pos === "G";
   $("status").innerHTML = G ? STATUS.goalies : STATUS.skaters;
-  $("foot").textContent = G ? STATUS.gFoot : STATUS.skFoot;
 }
 
 document.addEventListener("click", e => {
