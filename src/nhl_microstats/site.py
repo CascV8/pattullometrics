@@ -35,6 +35,7 @@ from pathlib import Path
 
 import pandas as pd
 import puckscrape as ps
+from puckscrape import _http
 import pyarrow.parquet as pq
 from puckscrape._util import start_year
 
@@ -127,11 +128,23 @@ def games_status(y: int) -> dict:
     return {"games": len(list(folder.glob("*_pbp.parquet"))), "awaiting_shifts": missing}
 
 
+ROOKIES = "https://api.nhle.com/stats/rest/en/{who}/bios"
+
+
+def _rookies(y: int, goalie: bool) -> set[int]:
+    """NHL ids of the season's rookies by the NHL's own rule (the Calder's: no more than 25 games in
+    any earlier season, nor 6+ in each of two, and not 26 by September 15)."""
+    d = _http.get_json(ROOKIES.format(who="goalie" if goalie else "skater"), params={
+        "limit": -1, "cayenneExp": f"seasonId={y}{y + 1} and gameTypeId=2 and isRookie='1'"})
+    return {int(r["playerId"]) for r in d.get("data", [])}
+
+
 def _bios(y: int, goalie: bool = False) -> dict:
-    """Birth date, nationality, shooting side, draft (year, round, overall) and whether it's his first NHL
-    season, by NHL id, from the NHL's bios report for the season; {} if the report can't be had."""
+    """Birth date, nationality, shooting side, draft (year, round, overall) and whether he's a rookie,
+    by NHL id, from the NHL's bios report for the season; {} if the report can't be had."""
     try:
         df = (ps.nhl.goalie_stats if goalie else ps.nhl.skater_stats)(y, report="bios")
+        rookies = _rookies(y, goalie)
     except Exception as e:   # the directory's filters are an extra
         log.warning("%s: no bios (%s)", y, e)
         return {}
@@ -141,7 +154,7 @@ def _bios(y: int, goalie: bool = False) -> dict:
         "born": text(r.get("birth_date")) or None, "nat": text(r.get("nationality_code")) or text(r.get("birth_country_code")),
         "shoots": text(r.get("shoots_catches")),
         "draft": [num(r.get("draft_year")), num(r.get("draft_round")), num(r.get("draft_overall"))] if num(r.get("draft_round")) else None,
-        "first": num(r.get("first_season_for_game_type")) == y * 10001 + 1}
+        "rookie": int(r["player_id"]) in rookies}
         for r in df.to_dict("records") if r.get("player_id") == r.get("player_id")}
 
 

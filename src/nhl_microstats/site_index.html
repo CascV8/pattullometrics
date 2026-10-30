@@ -113,7 +113,7 @@ td a:hover { text-decoration: underline; }
     <label for="shoots">Shoots <select id="shoots"><option value="">Any</option><option value="L">Left</option><option value="R">Right</option></select></label>
     <label for="draft">Draft <select id="draft"><option value="">Any</option><option value="1">1st round</option>
       <option value="2">2nd round</option><option value="3">3rd round or later</option><option value="none">Undrafted</option></select></label>
-    <label for="first"><input type="checkbox" id="first"> First NHL season</label>
+    <label for="rookie" title="Calder Trophy eligible: no more than 25 NHL games in any earlier season, nor 6+ in each of two, and under 26 on September 15"><input type="checkbox" id="rookie"> Rookies</label>
     <button type="button" class="clear" id="clear" hidden>Clear filters</button>
   </div>
 
@@ -146,7 +146,7 @@ const pctCell = p => p == null || !isFinite(p) ? `<span class="dim">–</span>`
   : `<span class="pct ${tier(p)}">${Math.min(Math.max(Math.round(p), 1), 99)}</span>`;
 
 const MIN_GP = 10;   // default sample-size filter; visitors can lower it
-const FILTERS = { team: "", mingp: MIN_GP, agemin: "", agemax: "", nat: "", shoots: "", draft: "", first: false };
+const FILTERS = { team: "", mingp: MIN_GP, agemin: "", agemax: "", nat: "", shoots: "", draft: "", rookie: false };
 const state = { season: null, pos: "all", mode: "5v5", q: "", ...FILTERS, sort: "p", dir: -1, gsort: "overall", gdir: -1 };
 try { Object.assign(state, JSON.parse(localStorage.getItem("site-state") || "{}"), { q: "" }); } catch (e) {}
 // ?pos=F|D|all and ?season= (from the goalies table's buttons) win over the remembered view
@@ -171,7 +171,7 @@ function bioMatch(r) {
   if (state.shoots && r.shoots !== state.shoots) return false;
   if (state.draft === "none" && r.draft !== null) return false;   // undrafted: a bio with no draft
   if (state.draft && state.draft !== "none" && !(r.draft && (state.draft === "3" ? r.draft[1] >= 3 : r.draft[1] === +state.draft))) return false;
-  if (state.first && !r.first) return false;
+  if (state.rookie && !r.rookie) return false;
   return true;
 }
 const filtersOn = () => Object.entries(FILTERS).some(([k, v]) => state[k] !== v);
@@ -288,12 +288,12 @@ $("team").addEventListener("change", e => { state.team = e.target.value; render(
 $("mingp").addEventListener("input", e => { state.mingp = +e.target.value || 0; render(); });
 for (const k of ["agemin", "agemax"]) $(k).addEventListener("input", e => { state[k] = e.target.value === "" ? "" : +e.target.value; render(); });
 for (const k of ["nat", "shoots", "draft"]) $(k).addEventListener("change", e => { state[k] = e.target.value; render(); });
-$("first").addEventListener("change", e => { state.first = e.target.checked; render(); });
+$("rookie").addEventListener("change", e => { state.rookie = e.target.checked; render(); });
 $("clear").addEventListener("click", () => { Object.assign(state, FILTERS); showFilters(); render(); });
 // Put the filter controls in step with state (after loading, or clearing)
 function showFilters() {
   for (const k of ["team", "mingp", "agemin", "agemax", "nat", "shoots", "draft"]) $(k).value = state[k];
-  $("first").checked = state.first;
+  $("rookie").checked = state.rookie;
 }
 $("season").addEventListener("change", e => loadSeason(+e.target.value));
 
