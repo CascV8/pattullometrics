@@ -61,7 +61,15 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .trend { margin-top: 28px; }
 .trend h2 { font: 700 1.3rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 4px; }
 .trend .cap { color: var(--muted); font-size: .84rem; margin: 0 0 12px; }
-.panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.trend-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; justify-content: space-between; }
+.trend-head button { font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.trend-head button:disabled { opacity: .6; cursor: progress; }
+#trend-shot { padding: 4px 0; }
+.capturing-trend#trend-shot { padding: 14px; background: var(--bg); }
+/* Overall and the eight categories: three by three (one column on a phone) */
+.panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .panels { grid-template-columns: minmax(0, 1fr); } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 6px; min-width: 0; }
 .panel .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel .pt { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; }
@@ -76,8 +84,9 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .panel text.now { fill: var(--ink); font-weight: 700; }   /* the season this card is */
 .panel.overall { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
 .dot-elite { fill: var(--elite); } .dot-good { fill: var(--good); } .dot-avg { fill: var(--avg); } .dot-weak { fill: var(--weak); }
-.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink); color: var(--surface); font: 600 .78rem/1.3 var(--body);
-  padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--track); color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); font: 700 .9rem/1 var(--display);
+  font-variant-numeric: tabular-nums; padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
 .trend details { margin-top: 10px; color: var(--muted); font-size: .84rem; }
 .trend summary { cursor: pointer; font-weight: 600; }
 .trend table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
@@ -196,9 +205,12 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
   <div class="grid" id="grid"></div>
 
   <div class="trend" id="trend" hidden>
-    <h2>By season</h2>
-    <p class="cap">Each category's percentile, season by season; the number is the season shown above. Dashed line = the league median (50th). Dot colour = tier. * Season in progress.</p>
-    <div class="panels" id="panels"></div>
+    <div id="trend-shot">
+      <div class="trend-head"><h2 id="trend-title">By season</h2>
+        <button type="button" class="dl-trend" id="dl-trend">Download PNG</button></div>
+      <p class="cap">Each category's percentile, season by season; the number is the season shown above. Dashed line = the league median (50th). Dot colour = tier. * Season in progress.</p>
+      <div class="panels" id="panels"></div>
+    </div>
     <details><summary>Show as a table</summary><div id="trend-table"></div></details>
   </div>
   <div class="tip" id="tip" hidden></div>
@@ -450,10 +462,12 @@ function renderTrend() {
   for (const t of seasons) for (const c of Object.keys(t.cats)) if (!titles.includes(c)) titles.push(c);
   const series = [["Overall", seasons.map(t => t.overall)], ...titles.map(c => [c, seasons.map(t => t.cats[c])])];
   const short = t => `${String(t.season).slice(2)}-${String(t.season + 1).slice(2)}${t.early ? "*" : ""}`;
-  const W = 230, H = 112, L = 22, R = 10, T = 8, B = 18;
+  const W = 380, H = 150, L = 24, R = 12, T = 10, B = 20;   // a wide panel: three across
   const x = i => L + (seasons.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (seasons.length - 1));
   const y = p => T + (1 - (p - 1) / 98) * (H - T - B);
   const dot = p => p >= 90 ? "dot-elite" : p >= 67 ? "dot-good" : p >= 33 ? "dot-avg" : "dot-weak";
+  const c0 = DATA.cards[0];
+  document.getElementById("trend-title").textContent = `${c0.name} · by season · ${state.mode === "5v5" ? "5v5" : "all situations"}`;
   document.getElementById("panels").innerHTML = series.map(([title, vals], k) => {
     const pts = vals.map((v, i) => v == null || !isFinite(v) ? null : [x(i), y(shown(v)), shown(v), seasons[i]]);
     const path = pts.reduce((d, p, i) => !p ? d : d + `${d && pts[i - 1] ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`, "");
@@ -466,13 +480,32 @@ function renderTrend() {
         ${seasons.map((t, i) => `<text x="${x(i)}" y="${H - 4}" text-anchor="middle"${String(t.season) === String(PICKER?.here) ? ' class="now"' : ""}>${short(t)}</text>`).join("")}
         <path class="ln" d="${path}"/>
         ${pts.filter(Boolean).map(p => `<circle class="pt-dot ${dot(p[2])}" cx="${p[0]}" cy="${p[1]}" r="${String(p[3].season) === String(PICKER?.here) ? 5.5 : 4}"/>`).join("")}
-        ${pts.filter(Boolean).map(p => `<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${esc(title)} · ${esc(p[3].name)}${p[3].early ? " so far" : ""}: ${ord(p[2])}"/>`).join("")}
+        ${pts.filter(Boolean).map(p => `<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${ord(p[2])}"/>`).join("")}
       </svg></div>`;
   }).join("");
   document.getElementById("trend-table").innerHTML = `<table><thead><tr><th>Category</th>${seasons.map(t => `<th>${esc(t.name)}${t.early ? "*" : ""}</th>`).join("")}</tr></thead><tbody>${
     series.map(([title, vals]) => `<tr><td>${esc(title)}</td>${vals.map(v => `<td>${v == null || !isFinite(v) ? "–" : ord(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   box.hidden = false;
 }
+async function downloadTrend(button) {
+  const node = document.getElementById("trend-shot"), label = button.textContent;
+  button.disabled = true; button.textContent = "Rendering…";
+  try {
+    htmlToImage ??= await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm");
+    node.classList.add("capturing-trend");
+    const url = await htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: false,
+      filter: el => el.id !== "dl-trend", fontEmbedCSS: await embeddedFonts().catch(() => undefined),
+      backgroundColor: getComputedStyle(document.body).backgroundColor });
+    const file = DATA.cards[0].name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "");
+    Object.assign(document.createElement("a"), { href: url, download: `${file}-by-season.png` }).click();
+  } catch (err) {
+    alert(`Couldn't make the image (${err.message || err}).`);
+  } finally {
+    node.classList.remove("capturing-trend");
+    button.disabled = false; button.textContent = label;
+  }
+}
+
 // One tooltip for every panel's points
 document.addEventListener("pointerover", e => {
   const tip = document.getElementById("tip"), hit = e.target.closest?.(".hit");
@@ -504,6 +537,7 @@ if (early) {
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.classList.contains("dl")) return downloadCards(b);   // no re-render: it would replace the card mid-capture
+  if (b.classList.contains("dl-trend")) return downloadTrend(b);
   if (b.dataset.mode) state.mode = b.dataset.mode;
   if (b.dataset.pos) state.pos = b.dataset.pos;
   render();
