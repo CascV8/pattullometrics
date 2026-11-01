@@ -30,6 +30,8 @@ permissions:
 
 env:
   PAGES_PROJECT: ${{ vars.PAGES_PROJECT || 'nhl-microstats' }}
+  # nhl-microstats installs the xG model from GitHub; its trained file is kept (and cached) in the xg-model checkout
+  XG_MODELS: ${{ github.workspace }}/xg-model/models
 
 jobs:
   update:
@@ -82,12 +84,12 @@ jobs:
       - name: Refresh lineups
         id: lineups
         working-directory: nhl-microstats
-        run: uv run nhl-microstats lineups || echo "lineups not refreshed; the site keeps the last ones"
+        run: uv run team-metrics lineups || echo "lineups not refreshed; the site keeps the last ones"
 
       - name: Pull new games and rebuild
         id: update
         working-directory: nhl-microstats
-        run: uv run nhl-microstats update ${{ inputs.force && '--force' || '' }}
+        run: uv run pattullometrics update ${{ inputs.force && '--force' || '' }}
 
       # Deploys when the NHLe repo has moved on since the last deploy, even with no new games.
       - name: Add the NHLe prospect cards
@@ -101,7 +103,7 @@ jobs:
           fi
           # nothing new from the NHL means no fresh site/ to add the cards (or new lineups) to
           if [ "$sha" != "$(cat data/nhle_deployed 2>/dev/null)" ] || [ "${{ steps.lineups.outputs.changed }}" = "true" ]; then
-            [ "${{ steps.update.outputs.changed }}" = "true" ] || uv run nhl-microstats site
+            [ "${{ steps.update.outputs.changed }}" = "true" ] || uv run pattullometrics site
           fi
           # web/ arrives with CascV8/NHLe#1; until then the site deploys without the cards
           if [ -d site ] && [ -f ../nhle/web/build.py ]; then python3 ../nhle/web/build.py site functions; fi

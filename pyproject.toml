@@ -1,13 +1,15 @@
 [project]
-name = "nhl-microstats"
+name = "pattullometrics"
 version = "0.1.0"
-description = "NHL skater microstats and league percentiles, built on puckscrape and xg-model"
+description = "The pattullometrics website: player cards, skater, goalie and team pages over nhl-microstats and team-metrics"
 readme = "README.md"
 authors = [
     { name = "casc", email = "cruidadengv8@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "nhl-microstats",
+    "team-metrics",
     "numpy>=2.5.3",
     "pandas>=3.0.6",
     "puckscrape",
@@ -18,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nhl-microstats = "nhl_microstats:main"
+pattullometrics = "pattullometrics:main"
 
 [build-system]
 requires = ["uv_build>=0.8.15,<0.9.0"]
@@ -26,7 +28,9 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 puckscrape = { git = "https://github.com/CascV8/Puckscrape.git" }
-xg-model = { path = "../xg-model", editable = true }
+xg-model = { git = "https://github.com/CascV8/xG-model.git" }
+nhl-microstats = { git = "https://github.com/CascV8/nhl-microstats.git" }
+team-metrics = { git = "https://github.com/CascV8/team-metrics.git" }
 
 [dependency-groups]
 dev = [

@@ -29,11 +29,12 @@ import pandas as pd
 import puckscrape as ps
 import pyarrow.parquet as pq
 
-from . import collect, curves, db
-from .build import build_season
+from nhl_microstats import collect, curves, db
+from nhl_microstats.build import build_season
+
 from .site import OUT, code_hash, default_seasons, export_site
 
-log = logging.getLogger("nhl_microstats.update")
+log = logging.getLogger("pattullometrics.update")
 
 OFFICIAL = {"OFF"}             # the game sheet is final
 SHIFT_RETRY_MINUTES = 30       # how often to re-ask for shift charts the NHL hasn't posted

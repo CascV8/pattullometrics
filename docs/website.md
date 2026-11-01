@@ -6,7 +6,7 @@ releases each game's sheet.
 ## Shape: a static site plus a watcher
 
 ```
-NHL API ──> GitHub Actions (nhl-microstats update) ──> microstats.db + current season ──> site/ ──> Cloudflare Pages
+NHL API ──> GitHub Actions (pattullometrics update) ──> microstats.db + current season ──> site/ ──> Cloudflare Pages
             every 5 min                                 (Actions cache, ~120 MB)             (15 MB)
 ```
 
@@ -27,9 +27,9 @@ and the watcher regenerates them whenever there's something new. Reasons:
 | `index.html` | Home page (`site_home.html`): a choice between the microstats and the NHLe prospect cards, with the current season's status. |
 | `microstats.html` | Every skater in a season: search, F/D filter, team, minimum GP, 5v5 / all situations, and a sortable table of xGF% and each category's percentile. Season picker; status line with games included, games awaiting shift charts, and last update. |
 | `nhle.html?src=nhl&id=8486067` | NHLe prospect cards, from the [NHLe repo](https://github.com/CascV8/NHLe) (`web/`). The deploy workflow checks NHLe out and runs `web/build.py site functions`, which adds the page and its Pages Function; a new NHLe commit is deployed on the next run even with no new games. See NHLe's `web/README.md`. |
-| `player.html?season=2026&id=8476902` | The player card (`cards_template.html`, the same file `nhl-microstats cards` uses) loaded with that player's JSON. Back links to the directory and the home page. |
+| `player.html?season=2026&id=8476902` | The player card (`cards_template.html`, the same file `pattullometrics cards` uses) loaded with that player's JSON. Back links to the directory and the home page. |
 
-The card template works both ways: `nhl-microstats cards` embeds the data; on the site,
+The card template works both ways: `pattullometrics cards` embeds the data; on the site,
 `DATA` is empty and the page fetches `data/<season>/players/<id>.json`.
 
 ## Data files
@@ -41,7 +41,7 @@ data/<season>/players/<id>.json     one card, the same shape the cards page embe
 ```
 
 Seasons from 2023-24 (the first season of the comparison pool) on are exported by default (about 3,450
-player files, 32 MB). Adding seasons is `nhl-microstats site 2026 2025 2024 ...`.
+player files, 32 MB). Adding seasons is `pattullometrics site 2026 2025 2024 ...`.
 `card_data` builds every player from `percentile.season_table`, which ranks a whole
 season in one pass per stat (about 40 s per season instead of hours of per-player queries).
 A test checks that it matches `player_table` exactly.

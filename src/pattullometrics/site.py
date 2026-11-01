@@ -39,22 +39,33 @@ from puckscrape import _http
 import pyarrow.parquet as pq
 from puckscrape._util import start_year
 
-from . import collect, goalies, teams
-from .cards import MODES, TEMPLATE, card_data
-from .db import connect
-from .percentile import complete_seasons, season_name
+import nhl_microstats.cards
+import nhl_microstats.curves
+import nhl_microstats.db
+import nhl_microstats.goalies
+import nhl_microstats.percentile
+import team_metrics.teams
+from nhl_microstats import collect, goalies
+from nhl_microstats.cards import MODES, card_data
+from nhl_microstats.db import connect
+from nhl_microstats.percentile import complete_seasons, season_name
 
-log = logging.getLogger("nhl_microstats.site")
+from . import team_pages
+from .cards import TEMPLATE
+
+log = logging.getLogger("pattullometrics.site")
 
 INDEX_TEMPLATE = Path(__file__).with_name("site_index.html")
 HOME_TEMPLATE = Path(__file__).with_name("site_home.html")
 # published name: template, for the goalie pages
 GOALIE_PAGES = {"goalies.html": "site_goalies.html", "goalie.html": "site_goalie.html"}
 TEAM_PAGES = {"teams.html": "site_teams.html", "team.html": "site_team.html"}
-OUT = collect.ROOT / "site"
+OUT = Path.cwd() / "site"
 CACHE = collect.DATA / "site_cache"
-# What a season's exported files depend on, besides its own rows: the code and the curves.
-CODE = ["cards.py", "curves.py", "percentile.py", "site.py", "db.py", "goalies.py"]
+# What a season's exported files depend on, besides its own rows: the code (here and in nhl-microstats) and the curves.
+CODE = [Path(m.__file__) for m in (nhl_microstats.cards, nhl_microstats.curves, nhl_microstats.percentile,
+                                    nhl_microstats.db, nhl_microstats.goalies)] + [Path(__file__)]
+TEAM_CODE = [Path(team_metrics.teams.__file__), Path(__file__).with_name("team_pages.py")]
 
 
 FIRST_SEASON = 2023   # the site starts with the first season of the curves' comparison pool (2023-24)
@@ -70,17 +81,17 @@ def default_seasons() -> list[int]:
 def code_hash() -> str:
     """Changes whenever the code or templates that shape the site do."""
     h = hashlib.sha256()
-    for name in [*CODE, "teams.py", TEMPLATE.name, INDEX_TEMPLATE.name, HOME_TEMPLATE.name, *GOALIE_PAGES.values(),
-                 *TEAM_PAGES.values()]:
-        h.update(Path(__file__).with_name(name).read_bytes())
+    for path in [*CODE, *TEAM_CODE, TEMPLATE, INDEX_TEMPLATE, HOME_TEMPLATE,
+                 *(Path(__file__).with_name(n) for n in [*GOALIE_PAGES.values(), *TEAM_PAGES.values()])]:
+        h.update(path.read_bytes())
     return h.hexdigest()
 
 
 def _stamp(y: int) -> str:
     """Changes whenever season ``y``'s exported files could: its data, the curves, or the code."""
     h = hashlib.sha256()
-    for name in CODE:
-        h.update(Path(__file__).with_name(name).read_bytes())
+    for path in CODE:
+        h.update(path.read_bytes())
     with connect() as con:
         for q, params in (("SELECT count(*), total(value) FROM stats WHERE season = ?", [y]),
                           ("SELECT count(*), total(toi_all), group_concat(team) FROM player_seasons WHERE season = ?", [y]),
@@ -212,7 +223,7 @@ def export_site(seasons=None, out: Path | str = OUT) -> Path:
     team_seasons = []
     for y in sorted(seasons, reverse=True):
         try:
-            if teams.export_teams(tmp / "data" / str(y), y, tmp):
+            if team_pages.export_teams(tmp / "data" / str(y), y, tmp):
                 team_seasons.append({"season": y, "name": season_name([y])})
         except Exception as e:
             log.warning("%s: no team pages (%s)", y, e)
