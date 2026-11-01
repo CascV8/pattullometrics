@@ -101,7 +101,7 @@ h1 .accent { color: var(--bridge-blue); }   /* PATTULLO in the arch's orange, ME
       <h2>Team metrics</h2>
       <p>All 32 teams ranked across the league, with their latest lines.</p>
       <span class="chips" aria-hidden="true">
-        <i>88</i><i>61</i><i>45</i><i>12</i>
+        <i data-rank="2">2nd</i><i data-rank="9">9th</i><i data-rank="17">17th</i><i data-rank="28">28th</i>
       </span>
       <span class="status">Lines · power play · penalty kill</span>
       <span class="go">Browse teams →</span>
@@ -152,7 +152,9 @@ document.fonts.ready.then(queueAlign);
 addEventListener("resize", queueAlign);
 
 const tier = p => p >= 90 ? "t-elite" : p >= 67 ? "t-good" : p >= 33 ? "t-avg" : "t-weak";
-for (const chip of document.querySelectorAll(".chips i")) chip.className = tier(+chip.textContent);
+// Percentile chips by their number; the team chips are ranks of 32, coloured as the teams page colours a rank
+for (const chip of document.querySelectorAll(".chips i"))
+  chip.className = tier(chip.dataset.rank ? 100 * (32 - chip.dataset.rank) / 31 : +chip.textContent);
 
 fetch("data/meta.json").then(r => r.json()).then(m => {
   const s = m.seasons[0];
