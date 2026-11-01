@@ -4,11 +4,14 @@
 
 Daily Faceoff keeps no history, so a complete season's lineup is the one each team settled on after the deadline:
 over its games after TRADE_DEADLINE, every stretch of play in which nobody changed is credited to the players on the
-ice, and the most-used combinations that share no player become the lineup:
+ice. The twelve forwards and six defencemen with the most 5v5 time are the lineup; their most-used combinations that
+share no player become its lines and pairs, anyone left over fills the open spots, and lines are ordered by ice time
+(so a regular whose linemates kept changing still dresses, and a team always has four lines):
 
-    lines    forward trios at 5v5 (both teams five skaters and a goalie), the top four
-    pairs    defence pairs at 5v5, the top three
-    goalies  the two with the most starts (on the ice at the opening faceoff)
+    lines    forward trios at 5v5 (both teams five skaters and a goalie), four
+    pairs    defence pairs at 5v5, three
+    goalies  the two with the most starts all season, of those who played after the deadline (a starter hurt
+             at the deadline is still the starter)
     pp       five-skater units on the power play (five against four), the top two
     pk       four-skater units on the penalty kill (four against five), the top two
     extras   everyone else who played for the team after the deadline
@@ -106,11 +109,29 @@ def _usage(shifts: pd.DataFrame, pos: dict[int, str]):
     return usage, starts
 
 
-def _lineup(abbr: str, usage, starts, pos: dict[int, str]) -> dict:
-    """The team's most-used combinations that share no player, and its two goalies with the most starts."""
-    goalies = [p for (team, p), _ in sorted(starts.items(), key=lambda kv: -kv[1]) if team == abbr][:2]
-    return {"lines": [sorted(c, key=lambda p: FORWARD_ORDER.get(pos.get(p), 1)) for c in _top(usage[abbr, "F"], 4)],
-            "pairs": [list(c) for c in _top(usage[abbr, "D"], 3)], "goalies": goalies,
+def _units(usage: Counter, size: int, n: int) -> list[tuple]:
+    """``n`` units of ``size`` from the ``size * n`` players with the most time in ``usage``: their most-used
+    combinations that share no player first, then whoever is left (by time) into the open units, most time first."""
+    toi = Counter()
+    for combo, secs in usage.items():
+        for p in combo:
+            toi[p] += secs
+    core = {p for p, _ in toi.most_common(size * n)}
+    units = _top(Counter({c: s for c, s in usage.items() if set(c) <= core}), n)
+    left = sorted(core - {p for u in units for p in u}, key=lambda p: -toi[p])
+    while left and len(units) < n:
+        units.append(tuple(left[:size])); left = left[size:]
+    return sorted(units, key=lambda u: -sum(toi[p] for p in u))
+
+
+def _lineup(abbr: str, usage, starts, pos: dict[int, str], season_starts: Counter | None = None) -> dict:
+    """The team's lines and pairs (_units) and its two goalies with the most starts (over the season when given,
+    among the goalies in ``starts``)."""
+    mine = [p for (team, p) in starts if team == abbr]
+    ranked = season_starts or starts
+    goalies = sorted(mine, key=lambda p: (-ranked.get((abbr, p), 0), -starts[abbr, p]))[:2]
+    return {"lines": [sorted(u, key=lambda p: FORWARD_ORDER.get(pos.get(p), 1)) for u in _units(usage[abbr, "F"], 3, 4)],
+            "pairs": [list(u) for u in _units(usage[abbr, "D"], 2, 3)], "goalies": goalies,
             "pp": [list(c) for c in _top(usage[abbr, "PP"], 2)], "pk": [list(c) for c in _top(usage[abbr, "PK"], 2)]}
 
 
@@ -145,8 +166,11 @@ def deadline_lineups(y: int) -> dict:
     """Season ``y``'s teams: final record and stats, the lineup after the deadline and the opening-night lineup (see
     the module docstring)."""
     _, shifts = build._load(y)
-    shifts = shifts[shifts["game_id"].isin(_after_deadline(y))]
     pos = _positions(y)
+    season_starts = Counter(map(tuple, shifts.loc[(shifts["period"] == 1) & (shifts["start_seconds"] == 0)
+                                                  & ~shifts["player_id"].isin(list(pos)), ["team_abbrev", "player_id"]]
+                                .astype({"player_id": "int64"}).itertuples(index=False, name=None)))
+    shifts = shifts[shifts["game_id"].isin(_after_deadline(y))]
     usage, starts = _usage(shifts, pos)
     played = shifts.groupby("team_abbrev")["player_id"].agg(lambda p: sorted(set(p.astype("int64"))))
     opening = opening_lineups(y)
@@ -158,7 +182,7 @@ def deadline_lineups(y: int) -> dict:
     for t in table:
         abbr, name = t["teamAbbrev"]["default"], t["teamName"]["default"]
         s = summary.get(_key(name)) or {}
-        after = _lineup(abbr, usage, starts, pos)
+        after = _lineup(abbr, usage, starts, pos, season_starts)
         dressed = {p for c in after["lines"] + after["pairs"] for p in c} | set(after["goalies"])
         out["teams"].append({
             "abbrev": abbr, "name": name, "gp": s.get("gamesPlayed"), "points": s.get("points"),

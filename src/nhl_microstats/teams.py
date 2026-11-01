@@ -250,7 +250,7 @@ def _opening(lineup: dict | None, rows: list[dict], gdata: dict) -> list[dict]:
 
 def _season_openers(y: int, n_teams: int) -> dict[str, dict]:
     """The season under way's opening-night lineups, worked out once every team has played (deadline.py) and kept."""
-    path = collect.DATA / f"opening_{y}.json"
+    path = collect.DATA / f"opening_{y}_v2.json"   # v2: every dressed player in four lines and three pairs
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     from .deadline import opening_lineups   # it reads the shift charts; deadline.py imports this module
