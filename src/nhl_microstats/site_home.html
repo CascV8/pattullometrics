@@ -49,6 +49,11 @@ h1 .accent { color: var(--bridge-blue); }   /* PATTULLO in the arch's orange, ME
 .t-weak { background: var(--weak) }
 .bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; max-width: 320px; }
 .bar i { display: block; }
+/* The NHLe card's bar, each part named inside its own colour (as on the cards) */
+.bar.named { height: 24px; }
+.bar.named i { display: grid; place-items: center; font: 700 .78rem/1 var(--display); letter-spacing: .06em;
+  text-transform: uppercase; font-style: normal; color: #111; }
+.bar.named i.b { color: var(--muted); }
 /* The Pattullo Bridge sits on the title, drawn in strokes of the ink colour so it works in both themes. */
 .bridge { display: block; width: min(420px, 100%); height: auto; margin: 0 0 6px; }
 .bridge .arch { color: var(--bridge-orange); } .bridge .steel { color: var(--bridge-blue); }
@@ -84,10 +89,10 @@ h1 .accent { color: var(--bridge-blue); }   /* PATTULLO in the arch's orange, ME
       <span class="kicker">Prospects</span>
       <h2>NHLe cards</h2>
       <p>Any prospect's scoring translated to an NHL rate, and what that rate has meant historically.</p>
-      <span class="bar" aria-hidden="true">
-        <i style="flex:1;background:var(--star)"></i><i style="flex:1;background:var(--nhler)"></i><i style="flex:1;background:var(--bust)"></i>
+      <span class="bar named" aria-label="Star, NHLer and bust chances">
+        <i style="flex:1;background:var(--star)">Star</i><i style="flex:1;background:var(--nhler)">NHLer</i><i class="b" style="flex:1;background:var(--bust)">Bust</i>
       </span>
-      <span class="status">Star · NHLer · bust, for every season from D-1 to D+5</span>
+      <span class="status">For every season from D-1 to D+5</span>
       <span class="go">Look up a prospect →</span>
     </a>
 
