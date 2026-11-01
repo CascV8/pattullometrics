@@ -8,7 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
 <style>
-/* A goalie's card: the counterpart of the skaters' player card. Same tokens as the rest of the site. */
+/* A goalie's cards: the skaters' player card (cards_template.html) for a goalie. A ratings card (headshot, Overall,
+   a tile per rating) beside a stat card (record and each rating's value, bar and percentile), then each rating
+   season by season. Same tokens and pieces as the skater card. */
 :root {
   --bg: #0b1117; --surface: #131c24; --ink: #e5ecf1; --muted: #8d9ba7; --line: #24323e; --track: #1e2a35;
   --accent: #f2883a;   /* the Pattullo orange */
@@ -18,93 +20,338 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--body); }
 a { color: var(--accent); }
-.wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
-.nav { margin: 0 0 14px; font: 600 .86rem var(--body); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
-label { display: inline-flex; gap: 6px; align-items: center; font: 600 .78rem var(--body); text-transform: uppercase;
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; }
+.back { margin: 0 0 8px; font: 600 .86rem var(--body); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+h1 { font: 700 2.4rem/1 var(--display); text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.sub { color: var(--muted); margin: 6px 0 18px; max-width: 62ch; }
+label.sort { display: inline-flex; gap: 8px; align-items: center; font: 600 .82rem var(--body); text-transform: uppercase;
   letter-spacing: .03em; color: var(--muted); }
-select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; }
+select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .note { color: var(--muted); font-size: .84rem; margin: 14px 0 0; max-width: 72ch; }
-.pct { display: inline-grid; place-items: center; min-width: 2.9em; padding: 6px 8px; border-radius: 6px;
-  font: 700 1.35rem/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted); margin: 0 0 18px; }
+.legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
 .t-elite { background: var(--elite) } .t-good { background: var(--good) } .t-avg { background: var(--avg) } .t-weak { background: var(--weak) }
-.t-none { background: var(--track); color: var(--muted) }
 
-.gcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.band { display: grid; grid-template-columns: 84px 1fr auto; gap: 14px; align-items: center; padding: 16px; border-bottom: 1px solid var(--line); }
-.band img { width: 84px; height: 84px; object-fit: contain; object-position: bottom; }
-.band .nm { font: 700 2rem/1.02 var(--display); text-transform: uppercase; }
-.band .ps { font: 600 .8rem var(--display); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
-.ovr { display: grid; justify-items: center; gap: 4px; }
-.ovr .pct { font-size: 2.6rem; min-width: 2.2em; padding: 10px 12px; }
-.k { font: 600 .74rem var(--display); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
-.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px; }
-.m { display: grid; gap: 6px; justify-items: center; }
-.m .pct { width: 100%; font-size: 1.6rem; padding: 10px 8px; }
-.m .p { font: 600 .74rem var(--display); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
-.line { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0 16px 16px; color: var(--muted); font-weight: 600; }
-.line b { color: var(--ink); }
-@media (max-width: 520px) {
-  .band { grid-template-columns: 64px 1fr; } .band img { width: 64px; height: 64px; }
-  .ovr { grid-column: 1 / -1; justify-items: start; grid-template-columns: auto auto; align-items: center; gap: 10px; }
-  .band .nm { font-size: 1.6rem; }
-}
+/* The cards and the by-season panels share one width: the cards set it, the panels fill it */
+.body { width: fit-content; max-width: min(100%, 1240px); }
+.body .trend { contain: inline-size; }
+.pair { display: grid; grid-template-columns: 340px minmax(0, max-content); gap: 10px; align-items: stretch; justify-content: start; }
+.card-tools { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 6px; }
+.card-tools label.sort { margin-right: auto; }
+.card-tools button, .trend-head button { font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.card-tools button:disabled, .trend-head button:disabled { opacity: .6; cursor: progress; }
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } .side { max-width: 420px; } }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
+.shot { display: block; object-fit: cover; object-position: top; }
+
+/* Ratings card: the goalie on top, then Overall across the full width and a tile per rating */
+.side { display: flex; flex-direction: column; }
+.side .who { background: var(--team); color: var(--team-ink); padding: 10px 12px; display: flex; align-items: center; gap: 12px; }
+.side .who .shot { width: 72px; height: 72px; border-radius: 50%; flex: none;
+  background: color-mix(in srgb, var(--team-ink) 14%, transparent); border: 3px solid color-mix(in srgb, var(--team-ink) 40%, transparent); }
+.side .who .name { font: 700 1.3rem/1.02 var(--display); text-transform: uppercase; text-wrap: balance; }
+.side .who .line { font: 600 .78rem var(--body); opacity: .9; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 10px; flex: 1; }
+.tiles .overall { grid-column: 1 / -1; }
+.tiles .cat { display: flex; flex-direction: column; }
+.tiles .cat .bar { margin-top: auto; }
+.tiles .cat:not(.overall) .top { flex-direction: column; align-items: flex-start; gap: 2px; }
+.cat { padding: 8px 10px 9px; border-radius: 8px; min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--tc, var(--avg)) 45%, var(--line));
+  background: color-mix(in srgb, var(--tc, var(--avg)) 10%, var(--surface)); }
+.cat[data-tier="t-elite"] { --tc: var(--elite); } .cat[data-tier="t-good"] { --tc: var(--good); }
+.cat[data-tier="t-avg"] { --tc: var(--avg); } .cat[data-tier="t-weak"] { --tc: var(--weak); }
+.cat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cat .t { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+.cat .p { font: 700 1.55rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.cat .sub { font-size: .74rem; color: var(--muted); margin: 0 0 5px; }
+.cat.overall { border-width: 2px; }
+.cat.overall .p { font-size: 3.2rem; }
+.cat.overall .t { font-size: 1rem; }
+
+/* Stat card: team band with the record, the headline save percentage, then each rating as a row */
+.band { background: var(--team); color: var(--team-ink); padding: 12px 14px 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+.band .name { font: 700 1.65rem/1.02 var(--display); text-transform: uppercase; letter-spacing: .01em; grid-column: 1; text-wrap: balance; }
+.band .tag { grid-column: 2; grid-row: 1 / span 2; align-self: start; text-align: right; font: 600 .78rem/1.3 var(--display);
+  letter-spacing: .08em; text-transform: uppercase; opacity: .92; }
+.band .tag b { display: block; font-size: 1.5rem; line-height: 1; letter-spacing: .02em; }
+.band .line { font: 600 .82rem var(--body); letter-spacing: .02em; opacity: .9; font-variant-numeric: tabular-nums; }
+.head { display: flex; gap: 22px; align-items: end; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.big { font: 700 2.5rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.head .cap { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.sections { padding: 12px 14px 4px; }
+section { padding: 8px 10px 9px; border: 1px solid var(--line); border-radius: 8px; margin: 0 0 10px;
+  background: color-mix(in srgb, var(--track) 35%, var(--surface)); min-width: 0; }
+h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 4.2em 64px 2.4em; gap: 8px; align-items: center; padding: 3px 0; font-size: .9rem; }
+.row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.row .pct { text-align: right; font: 700 1rem var(--display); font-variant-numeric: tabular-nums; }
+.row .lab { white-space: nowrap; }
+.bar { position: relative; height: 7px; background: var(--track); border-radius: 4px; display: block; }
+.bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: .6; }
+.fine { color: var(--muted); font-size: .78rem; padding: 0 14px 12px; }
+
+/* By season: Overall and the three ratings, two by two */
+.trend { margin-top: 28px; }
+.trend h2 { font: 700 1.3rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 4px; }
+.trend .cap { color: var(--muted); font-size: .84rem; margin: 0 0 12px; }
+.trend-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; justify-content: space-between; }
+#trend-shot { padding: 4px 0; }
+.capturing-trend#trend-shot { padding: 14px; background: var(--bg); }
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .panels { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 6px; min-width: 0; }
+.panel .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel .pt { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; }
+.panel .pv { font: 700 1.2rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.panel svg { display: block; width: 100%; height: auto; overflow: visible; }
+.panel .grid-l { stroke: var(--line); stroke-width: 1; }
+.panel .mid { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.panel .ln { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .75; }
+.panel .pt-dot { stroke: var(--surface); stroke-width: 2; r: 4px; transition: r .12s ease; }
+.panel .pt-dot.now { r: 5.5px; }
+.panel .pt:hover .pt-dot { r: 7.5px; }
+.panel .hit { fill: transparent; cursor: default; }
+.panel text { fill: var(--muted); font: 600 9px var(--body); }
+.panel text.now { fill: var(--ink); font-weight: 700; }
+.panel.overall { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
+.dot-elite { fill: var(--elite); } .dot-good { fill: var(--good); } .dot-avg { fill: var(--avg); } .dot-weak { fill: var(--weak); }
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--track); color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); font: 700 .9rem/1 var(--display);
+  font-variant-numeric: tabular-nums; padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.trend details { margin-top: 10px; color: var(--muted); font-size: .84rem; }
+.trend summary { cursor: pointer; font-weight: 600; }
+.trend table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.trend th, .trend td { padding: 3px 10px 3px 0; text-align: right; border-bottom: 1px solid var(--line); }
+.trend th:first-child, .trend td:first-child { text-align: left; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a>
-    <label for="season" id="season-label" hidden>Season <select id="season"></select></label></p>
-  <div id="card"><p class="note">Loading…</p></div>
-  <p class="note" id="foot"></p>
+  <p class="back"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a> <a href="./">Home</a></p>
+  <h1>Goalie Cards <span id="season-name"></span></h1>
+  <p class="sub">Ranked against every qualified goalie that season. Expected goals come from a custom xG model.</p>
+  <div class="legend">
+    <span><i class="t-elite"></i>90th+</span><span><i class="t-good"></i>67–89th</span>
+    <span><i class="t-avg"></i>33–66th</span><span><i class="t-weak"></i>below 33rd</span>
+    <span>Tick = league median. A higher percentile is always better: for GA/GP, fewer ranks higher.</span>
+  </div>
+
+  <div class="body">
+    <div id="card"><p class="note">Loading…</p></div>
+
+    <div class="trend" id="trend" hidden>
+      <div id="trend-shot">
+        <div class="trend-head"><h2 id="trend-title">By season</h2>
+          <button type="button" class="dl-trend" id="dl-trend">Download PNG</button></div>
+        <p class="cap">Each rating's percentile, season by season; the number is the season shown above. Dashed line = the league median (50th). Dot colour = tier. * Season in progress.</p>
+        <div class="panels" id="panels"></div>
+      </div>
+      <details><summary>Show as a table</summary><div id="trend-table"></div></details>
+    </div>
+  </div>
+  <div class="tip" id="tip" hidden></div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const tier = p => p == null ? "t-none" : p >= 90 ? "t-elite" : p >= 67 ? "t-good" : p >= 33 ? "t-avg" : "t-weak";
-const shown = p => p == null ? "–" : Math.min(Math.max(Math.round(p), 1), 99);
-const ordinal = n => { const v = n % 100, s = v >= 11 && v <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th"; return n + s; };
+const tier = p => p == null ? "t-avg" : p >= 90 ? "t-elite" : p >= 67 ? "t-good" : p >= 33 ? "t-avg" : "t-weak";
+const shown = p => Math.min(Math.max(Math.round(p), 1), 99);
+const ord = n => { n = shown(n); const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th"; return n + s; };
 const fmt = { gsax_gp: v => (v >= 0 ? "+" : "") + v.toFixed(2), sv: v => v.toFixed(3).replace(/^0/, ""), ga_gp: v => v.toFixed(2) };
+const SUB = { gsax_gp: "goals saved above expected per game", sv: "save percentage", ga_gp: "goals against per game" };
+const TEAMS = { ANA:["#f47a38","#111"], BOS:["#ffb81c","#111"], BUF:["#003087","#fff"], CGY:["#c8102e","#fff"],
+  CAR:["#ce1126","#fff"], CHI:["#cf0a2c","#fff"], COL:["#6f263d","#fff"], CBJ:["#002654","#fff"], DAL:["#006847","#fff"],
+  DET:["#ce1126","#fff"], EDM:["#041e42","#ff8a4c"], FLA:["#c8102e","#fff"], LAK:["#111111","#fff"], MIN:["#154734","#fff"],
+  MTL:["#af1e2d","#fff"], NSH:["#ffb81c","#111"], NJD:["#ce1126","#fff"], NYI:["#00539b","#fff"], NYR:["#0038a8","#fff"],
+  OTT:["#c52032","#fff"], PHI:["#f74902","#111"], PIT:["#111111","#fcb514"], SJS:["#006d75","#fff"], SEA:["#001628","#99d9d9"],
+  STL:["#002f87","#fff"], TBL:["#002868","#fff"], TOR:["#00205b","#fff"], UTA:["#0b162a","#6cace4"], VAN:["#00205b","#fff"],
+  VGK:["#b4975a","#111"], WSH:["#c8102e","#fff"], WPG:["#041e42","#fff"] };
 const params = new URLSearchParams(location.search), id = +params.get("id");
+let SEASONS = [], HERE = null;   // [{season, name, data, g}] oldest first; the season shown
 
-async function show(y, seasons) {
-  let data;
-  try { data = await (await fetch(`data/${y}/goalies.json`)).json(); } catch (e) { data = { goalies: [] }; }
-  const g = data.goalies.find(x => x.id === id);
-  if (!g) { $("card").innerHTML = `<p class="note">No card for that goalie in ${esc(data.name || y)}. <a href="microstats.html?pos=G">All goalies</a></p>`; return; }
-  document.title = `${g.name} · Pattullometrics`;
-  const team = g.team.split(",").pop(), season = `${y}${y + 1}`;
-  $("card").innerHTML = `<article class="gcard">
-    <div class="band"><img src="https://assets.nhle.com/mugs/nhl/${season}/${esc(team)}/${g.id}.png" alt="" onerror="this.style.visibility='hidden'">
-      <div><div class="nm">${esc(g.name)}</div><div class="ps">${esc(g.team.replace(/,/g, " / "))} · ${esc(data.name)}${data.early ? " so far" : ""}</div></div>
-      <div class="ovr"><span class="pct ${tier(g.overall)}">${shown(g.overall)}</span><span class="k">Overall</span></div></div>
-    <div class="metrics">${g.metrics.map(m => `<div class="m"><span class="k">${esc(m.label)}</span>
-      <span class="pct ${tier(m.pct)}">${m.pct == null ? "–" : ordinal(shown(m.pct))}</span>
-      <span class="p">${m.value == null ? "–" : fmt[m.key](m.value)}</span></div>`).join("")}</div>
-    <div class="line"><span><b>${g.gp}</b> GP</span><span><b>${g.w}-${g.l}-${g.otl}</b> W-L-OTL</span><span><b>${g.so}</b> SO</span>
-      ${g.qualified ? "" : `<span>under ${data.min_gp} GP: rated against the qualified goalies</span>`}</div>
-  </article>`;
-  $("foot").textContent = `Percentiles curved against the ${data.pool} goalies with ${data.min_gp}+ games in ${data.name}; league SV% `
-    + `${(data.league_sv ?? 0).toFixed(3).replace(/^0/, "")}. GSAx/GP: goals saved above expected (the xG of the unblocked shots `
-    + "faced, minus the goals on them), per game. GA/GP: goals against per game (fewer is better). Overall averages the three percentiles and is curved against "
-    + "the same goalies, so 50 is a median goalie.";
+function cards(s) {
+  const { season: y, data, g } = s;
+  const team = g.team.split(",").pop(), [bg, ink] = TEAMS[team] || ["#33414d", "#fff"];
+  const m = Object.fromEntries(g.metrics.map(x => [x.key, x]));
+  const tile = x => `<div class="cat" data-tier="${tier(x.pct)}" title="${esc(x.label)}: ${x.pct == null ? "no rating" : ord(x.pct) + " percentile"}">
+      <div class="top"><span class="t">${esc(x.label)}</span><span class="p">${x.pct == null ? "–" : ord(x.pct)}</span></div>
+      <div class="sub">${x.value == null ? "–" : fmt[x.key](x.value)}</div>
+      <span class="bar"><i class="${tier(x.pct)}" style="width:${x.pct == null ? 0 : Math.max(x.pct, 1.5)}%"></i></span></div>`;
+  const overall = `<div class="cat overall" data-tier="${tier(g.overall)}" title="Overall: ${g.overall == null ? "–" : ord(g.overall)} percentile">
+      <div class="top"><span class="t">Overall</span><span class="p">${g.overall == null ? "–" : ord(g.overall)}</span></div>
+      <div class="sub">the three ratings averaged, ranked against the same goalies</div>
+      <span class="bar"><i class="${tier(g.overall)}" style="width:${g.overall == null ? 0 : Math.max(g.overall, 1.5)}%"></i></span></div>`;
+  const row = x => `<div class="row" title="${esc(SUB[x.key])}"><span class="lab">${esc(x.label)}</span>
+      <span class="val">${x.value == null ? "–" : fmt[x.key](x.value)}</span>
+      <span class="bar"><i class="${tier(x.pct)}" style="width:${x.pct == null ? 0 : Math.max(x.pct, 1.5)}%"></i></span>
+      <span class="pct">${x.pct == null ? "–" : ord(x.pct)}</span></div>`;
+  const mugs = `https://assets.nhle.com/mugs/nhl/${y}${y + 1}/${esc(team)}/${g.id}.png`;
+  const file = g.name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") + `-${y}`;
+  const picker = SEASONS.length > 1 ? `<label class="sort">Season <select id="season">${[...SEASONS].reverse().map(s =>
+      `<option value="${s.season}"${s.season === y ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>` : "";
+  return `<div class="player"><div class="card-tools">${picker}
+      <button type="button" class="dl" data-what="pair" data-file="${esc(file)}-goalie">Download cards</button>
+      <button type="button" class="dl" data-what="side" data-file="${esc(file)}-ratings">Ratings card</button></div>
+    <div class="pair" style="--team:${bg};--team-ink:${ink}">
+      <aside class="card side" aria-label="${esc(g.name)} ratings">
+        <div class="who"><img class="shot" src="${mugs}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+          <div><div class="name">${esc(g.name)}</div><div class="line">${esc(g.team.replace(/,/g, "/"))} · G · ${esc(data.name)}${data.early ? " so far" : ""}</div></div></div>
+        <div class="tiles">${overall}${g.metrics.map(tile).join("")}</div>
+      </aside>
+      <article class="card">
+        <div class="band"><div class="name">${esc(g.name)}</div><div class="tag"><b>${esc(g.team.replace(/,/g, "/"))}</b>G</div>
+          <div class="line">${g.gp} GP · ${g.w}-${g.l}-${g.otl} W-L-OTL · ${g.so} SO</div></div>
+        <div class="head">
+          <div><div class="big">${m.sv?.value == null ? "–" : fmt.sv(m.sv.value)}</div><div class="cap">SV%${m.sv?.pct == null ? "" : " · " + ord(m.sv.pct)}</div></div>
+          <div><div class="big">${m.ga_gp?.value == null ? "–" : fmt.ga_gp(m.ga_gp.value)}</div><div class="cap">GA/GP</div></div>
+          <div><div class="big">${m.gsax_gp?.value == null ? "–" : fmt.gsax_gp(m.gsax_gp.value)}</div><div class="cap">GSAx/GP</div></div>
+        </div>
+        <div class="sections"><section><h3>Ratings</h3>${g.metrics.map(row).join("")}</section></div>
+        <p class="fine">${g.qualified ? `Against the ${data.pool} goalies with ${data.min_gp}+ games.` : `Under ${data.min_gp} games: rated against the ${data.pool} goalies with ${data.min_gp}+.`}</p>
+      </article>
+    </div></div>`;
 }
 
+function render() {
+  const s = SEASONS.find(x => x.season === HERE);
+  if (!s) { $("card").innerHTML = `<p class="note">No card for that goalie. <a href="microstats.html?pos=G">All goalies</a></p>`; return; }
+  document.title = `${s.g.name} · ${s.name}`;
+  $("season-name").textContent = s.data.early ? `${s.name} so far` : s.name;
+  $("card").innerHTML = cards(s);
+  $("season")?.addEventListener("change", e => {
+    HERE = +e.target.value; history.replaceState(null, "", `?season=${HERE}&id=${id}`); render();
+  });
+  renderTrend();
+}
+
+// By season: Overall and each rating's percentile, as small multiples (one line each)
+function renderTrend() {
+  if (SEASONS.length < 2) { $("trend").hidden = true; return; }
+  const latest = SEASONS[SEASONS.length - 1].g;
+  const series = [["Overall", SEASONS.map(s => s.g.overall)],
+    ...latest.metrics.map(x => [x.label, SEASONS.map(s => s.g.metrics.find(y => y.key === x.key)?.pct)])];
+  const short = s => `${String(s.season).slice(2)}-${String(s.season + 1).slice(2)}${s.data.early ? "*" : ""}`;
+  const W = 380, H = 150, L = 24, R = 12, T = 10, B = 20;
+  const x = i => L + (SEASONS.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (SEASONS.length - 1));
+  const y = p => T + (1 - (p - 1) / 98) * (H - T - B);
+  const dot = p => p >= 90 ? "dot-elite" : p >= 67 ? "dot-good" : p >= 33 ? "dot-avg" : "dot-weak";
+  $("trend-title").textContent = `${SEASONS.find(s => s.season === HERE)?.g.name ?? latest.name} · by season`;
+  $("panels").innerHTML = series.map(([title, vals], k) => {
+    const pts = vals.map((v, i) => v == null || !isFinite(v) ? null : [x(i), y(shown(v)), shown(v), SEASONS[i]]);
+    const path = pts.reduce((d, p, i) => !p ? d : d + `${d && pts[i - 1] ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`, "");
+    const here = pts.find(p => p && p[3].season === HERE);
+    return `<div class="panel${k === 0 ? " overall" : ""}">
+      <div class="ph"><span class="pt">${esc(title)}</span><span class="pv">${here ? ord(here[2]) : "–"}</span></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)} percentile by season: ${pts.filter(Boolean).map(p => `${p[3].name} ${ord(p[2])}`).join(", ")}">
+        ${[1, 99].map(v => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${v}</text>`).join("")}
+        <line class="mid" x1="${L}" x2="${W - R}" y1="${y(50)}" y2="${y(50)}"/><text x="${L - 4}" y="${y(50) + 3}" text-anchor="end">50</text>
+        ${SEASONS.map((s, i) => `<text x="${x(i)}" y="${H - 4}" text-anchor="middle"${s.season === HERE ? ' class="now"' : ""}>${short(s)}</text>`).join("")}
+        <path class="ln" d="${path}"/>
+        ${pts.filter(Boolean).map(p => `<g class="pt"><circle class="pt-dot ${dot(p[2])}${p[3].season === HERE ? " now" : ""}" cx="${p[0]}" cy="${p[1]}" r="4"/><circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${ord(p[2])}"/></g>`).join("")}
+      </svg></div>`;
+  }).join("");
+  $("trend-table").innerHTML = `<table><thead><tr><th>Rating</th>${SEASONS.map(s => `<th>${esc(s.name)}${s.data.early ? "*" : ""}</th>`).join("")}</tr></thead><tbody>${
+    series.map(([title, vals]) => `<tr><td>${esc(title)}</td>${vals.map(v => `<td>${v == null || !isFinite(v) ? "–" : ord(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  $("trend").hidden = false;
+}
+
+document.addEventListener("pointerover", e => {
+  const tip = $("tip"), hit = e.target.closest?.(".hit");
+  if (!hit) { tip.hidden = true; return; }
+  tip.textContent = hit.dataset.tip;
+  const r = hit.getBoundingClientRect();
+  tip.hidden = false;
+  tip.style.left = `${Math.min(r.left + r.width / 2 - tip.offsetWidth / 2, innerWidth - tip.offsetWidth - 8)}px`;
+  tip.style.top = `${r.top - tip.offsetHeight - 6}px`;
+});
+
+// Downloads (html-to-image, loaded on first use), as on the skater cards. The NHL's headshots come without CORS
+// headers, so for the capture they're swapped for copies relayed through the site's api/img.
+let fontCSS = null, htmlToImage = null;
+async function embeddedFonts() {
+  if (fontCSS !== null) return fontCSS;
+  let out = "";
+  for (const link of document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"]')) {
+    const css = await (await fetch(link.href)).text();
+    for (const [, subset, face] of css.matchAll(/\/\* ([\w-]+) \*\/\s*(@font-face\s*\{[^}]*\})/g)) {
+      const url = face.match(/url\((https:[^)]+)\)/)?.[1];
+      if (!url || (subset !== "latin" && subset !== "latin-ext")) continue;
+      const blob = await (await fetch(url)).blob();
+      const data = await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+      out += face.replace(url, data) + "\n";
+    }
+  }
+  return (fontCSS = out);
+}
+async function capture(node, file, button, before = () => {}, after = () => {}, filter) {
+  const label = button.textContent;
+  button.disabled = true; button.textContent = "Rendering…";
+  const swapped = [];
+  try {
+    htmlToImage ??= await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm");
+    for (const img of node.querySelectorAll("img")) {
+      const src = img.currentSrc || img.src;
+      if (!src || /^(data|blob):/.test(src) || new URL(src).origin === location.origin) continue;
+      try {
+        const r = await fetch(`api/img?u=${encodeURIComponent(src)}`);
+        if (!r.ok) throw new Error(r.status);
+        swapped.push([img, src]);
+        img.src = URL.createObjectURL(await r.blob());
+        await img.decode().catch(() => {});
+      } catch (e) { swapped.push([img, src, img.style.visibility]); img.style.visibility = "hidden"; }
+    }
+    before();
+    const url = await htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: false, filter,
+      fontEmbedCSS: await embeddedFonts().catch(() => undefined), backgroundColor: getComputedStyle(document.body).backgroundColor });
+    Object.assign(document.createElement("a"), { href: url, download: `${file}.png` }).click();
+  } catch (err) {
+    alert(`Couldn't make the image (${err.message || err}).`);
+  } finally {
+    after();
+    for (const [img, src, vis] of swapped) {
+      if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+      img.src = src;
+      if (vis !== undefined) img.style.visibility = vis;
+    }
+    button.disabled = false; button.textContent = label;
+  }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.classList.contains("dl")) {
+    const pair = b.closest(".card-tools").nextElementSibling;
+    capture(b.dataset.what === "side" ? pair.querySelector(".side") : pair, b.dataset.file, b);
+  } else if (b.classList.contains("dl-trend")) {
+    const node = $("trend-shot"), s = SEASONS.find(x => x.season === HERE);
+    capture(node, `${s.g.name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "")}-goalie-by-season`, b,
+      () => node.classList.add("capturing-trend"), () => node.classList.remove("capturing-trend"), el => el.id !== "dl-trend");
+  }
+});
+
 fetch("data/meta.json").then(r => r.json()).then(async m => {
-  // the seasons this goalie has a card in, for the season picker
-  const all = m.seasons.filter(s => s.goalies), have = [];
-  for (const s of all) {
-    try { const d = await (await fetch(`data/${s.season}/goalies.json`)).json(); if (d.goalies.some(x => x.id === id)) have.push(s); } catch (e) {}
+  // every season this goalie has a card in: the picker, and the by-season panels
+  for (const s of m.seasons.filter(s => s.goalies)) {
+    try {
+      const data = await (await fetch(`data/${s.season}/goalies.json`)).json();
+      const g = data.goalies.find(x => x.id === id);
+      if (g) SEASONS.push({ season: s.season, name: s.name, data, g });
+    } catch (e) {}
   }
+  SEASONS.sort((a, b) => a.season - b.season);
   const want = +params.get("season");
-  const y = have.some(s => s.season === want) ? want : (have[0]?.season ?? want);
-  if (have.length > 1) {
-    $("season").innerHTML = have.map(s => `<option value="${s.season}">${esc(s.name)}</option>`).join("");
-    $("season").value = y; $("season-label").hidden = false;
-    $("season").addEventListener("change", e => { history.replaceState(null, "", `?season=${e.target.value}&id=${id}`); show(+e.target.value); });
-  }
-  show(y);
+  HERE = SEASONS.some(s => s.season === want) ? want : SEASONS[SEASONS.length - 1]?.season;
+  render();
 }).catch(() => { $("card").innerHTML = `<p class="note">Couldn't load the stats. Try again in a minute.</p>`; });
 </script>
 </body>
