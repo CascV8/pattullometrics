@@ -55,6 +55,34 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .card-tools button { font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
   border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
 .card-tools button:disabled { opacity: .6; cursor: progress; }
+.card-tools label.sort { margin-right: auto; }   /* the season picker on the left of the row, the downloads on the right */
+
+/* Progression: one small panel per category, its percentile season by season (the league median dashed at 50). */
+.trend { margin-top: 28px; }
+.trend h2 { font: 700 1.3rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 4px; }
+.trend .cap { color: var(--muted); font-size: .84rem; margin: 0 0 12px; }
+.panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 6px; min-width: 0; }
+.panel .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel .pt { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; }
+.panel .pv { font: 700 1.2rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.panel svg { display: block; width: 100%; height: auto; overflow: visible; }
+.panel .grid-l { stroke: var(--line); stroke-width: 1; }
+.panel .mid { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.panel .ln { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .75; }
+.panel .pt-dot { stroke: var(--surface); stroke-width: 2; }
+.panel .hit { fill: transparent; cursor: default; }
+.panel text { fill: var(--muted); font: 600 9px var(--body); }
+.panel text.now { fill: var(--ink); font-weight: 700; }   /* the season this card is */
+.panel.overall { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
+.dot-elite { fill: var(--elite); } .dot-good { fill: var(--good); } .dot-avg { fill: var(--avg); } .dot-weak { fill: var(--weak); }
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink); color: var(--surface); font: 600 .78rem/1.3 var(--body);
+  padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.trend details { margin-top: 10px; color: var(--muted); font-size: .84rem; }
+.trend summary { cursor: pointer; font-weight: 600; }
+.trend table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.trend th, .trend td { padding: 3px 10px 3px 0; text-align: right; border-bottom: 1px solid var(--line); }
+.trend th:first-child, .trend td:first-child { text-align: left; }
 
 /* Headshot (categories card only): the NHL's cut-out mug over the team colour. A missing one leaves the space. */
 .shot { display: block; object-fit: cover; object-position: top; }
@@ -138,8 +166,7 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
 <div class="wrap">
   <header>
     <div>
-      <p class="back" id="back" hidden><a href="microstats.html">← All players</a> <a href="./">Home</a>
-        <label class="sort" id="pseason-label" for="pseason" hidden>Season <select id="pseason"></select></label></p>
+      <p class="back" id="back" hidden><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a> <a href="./">Home</a></p>
       <h1>Microstat Cards <span id="season"></span></h1>
       <p class="sub" id="sub">Ranked against every qualified skater at their position.
         A custom xG model scores every shot; Edge numbers come from NHL puck and player tracking.</p>
@@ -167,6 +194,14 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
   </div>
 
   <div class="grid" id="grid"></div>
+
+  <div class="trend" id="trend" hidden>
+    <h2>By season</h2>
+    <p class="cap">Each category's percentile, season by season; the number is the season shown above. Dashed line = the league median (50th). Dot colour = tier. * Season in progress.</p>
+    <div class="panels" id="panels"></div>
+    <details><summary>Show as a table</summary><div id="trend-table"></div></details>
+  </div>
+  <div class="tip" id="tip" hidden></div>
 
 </div>
 
@@ -334,7 +369,7 @@ function card(c) {
     <div class="tiles">${overall(c)}${cats}</div>
   </aside>`;
   const file = c.name.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") + `-${DATA.season}`;
-  return `<div class="player"><div class="card-tools">
+  return `<div class="player"><div class="card-tools">${DATA.site ? `<label class="sort pseason" hidden>Season <select class="pseason-sel"></select></label>` : ""}
       <button type="button" class="dl" data-what="pair" data-file="${esc(file)}-microstats">Download cards</button>
       <button type="button" class="dl" data-what="side" data-file="${esc(file)}-categories">Categories card</button></div>
     <div class="pair" style="--team:${team};--team-ink:${ink}">${strip}${statCard}</div></div>`;
@@ -370,10 +405,14 @@ function render() {
   };
   const cards = DATA.cards.filter(c => state.pos === "all" || c.group === state.pos).sort((a, b) => byKey(key(b), key(a)));
   document.getElementById("grid").innerHTML = cards.map(card).join("");
+  fillPicker();
+  renderTrend();
   try { localStorage.setItem("cards-state", JSON.stringify(state)); } catch (e) {}
 }
 
-// On the website: every season this player has a card for, newest first.
+// On the website: every season this player has a card for, newest first (the picker beside the downloads),
+// and each of those seasons' categories for the progression panels.
+let PICKER = null, TREND = null;
 function seasonPicker(id) {
   const here = new URLSearchParams(location.search).get("season");
   Promise.all([fetch("data/player_seasons.json").then(r => r.json()), fetch("data/meta.json").then(r => r.json())])
@@ -381,13 +420,69 @@ function seasonPicker(id) {
       const names = Object.fromEntries(meta.seasons.map(s => [String(s.season), s.name]));
       const mine = (bySeason[String(id)] || []).map(String);
       if (mine.length < 2) return;
-      const sel = document.getElementById("pseason");
-      sel.innerHTML = mine.map(y => `<option value="${y}">${esc(names[y] || y)}</option>`).join("");
-      sel.value = here;
-      sel.addEventListener("change", () => { location.href = `player.html?season=${sel.value}&id=${id}`; });
-      document.getElementById("pseason-label").hidden = false;
+      PICKER = { id, here, options: mine.map(y => `<option value="${y}">${esc(names[y] || y)}</option>`).join("") };
+      fillPicker();
+      return Promise.all(mine.map(y => (y === here ? Promise.resolve(DATA)
+        : fetch(`data/${y}/players/${encodeURIComponent(id)}.json`).then(r => r.ok ? r.json() : null).catch(() => null))
+        .then(d => d && d.cards?.[0] ? { season: +y, name: names[y] || y, early: !!d.early, card: d.cards[0] } : null)))
+        .then(rows => { TREND = rows.filter(Boolean).sort((a, b) => a.season - b.season); renderTrend(); });
     }).catch(() => {});
 }
+function fillPicker() {
+  if (!PICKER) return;
+  for (const label of document.querySelectorAll("label.pseason")) {
+    const sel = label.querySelector("select");
+    sel.innerHTML = PICKER.options;
+    sel.value = PICKER.here;
+    sel.onchange = () => { location.href = `player.html?season=${sel.value}&id=${PICKER.id}`; };
+    label.hidden = false;
+  }
+}
+
+// Progression: Overall and each category's percentile per season, as small multiples (one line each).
+function renderTrend() {
+  const box = document.getElementById("trend");
+  if (!TREND || TREND.length < 2) { box.hidden = true; return; }
+  const seasons = TREND.map(t => ({ ...t, cats: Object.fromEntries((t.card.categories[state.mode] || []).map(([title, avg, n, pct]) => [title, pct])),
+    overall: ((t.card.overall || {})[state.mode] || [])[2] }));
+  const latest = seasons[seasons.length - 1];
+  const titles = [...(latest.card.categories[state.mode] || []).map(c => c[0])];
+  for (const t of seasons) for (const c of Object.keys(t.cats)) if (!titles.includes(c)) titles.push(c);
+  const series = [["Overall", seasons.map(t => t.overall)], ...titles.map(c => [c, seasons.map(t => t.cats[c])])];
+  const short = t => `${String(t.season).slice(2)}-${String(t.season + 1).slice(2)}${t.early ? "*" : ""}`;
+  const W = 230, H = 112, L = 22, R = 10, T = 8, B = 18;
+  const x = i => L + (seasons.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (seasons.length - 1));
+  const y = p => T + (1 - (p - 1) / 98) * (H - T - B);
+  const dot = p => p >= 90 ? "dot-elite" : p >= 67 ? "dot-good" : p >= 33 ? "dot-avg" : "dot-weak";
+  document.getElementById("panels").innerHTML = series.map(([title, vals], k) => {
+    const pts = vals.map((v, i) => v == null || !isFinite(v) ? null : [x(i), y(shown(v)), shown(v), seasons[i]]);
+    const path = pts.reduce((d, p, i) => !p ? d : d + `${d && pts[i - 1] ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`, "");
+    const here = pts.find(p => p && String(p[3].season) === String(PICKER?.here)) ?? [...pts].reverse().find(Boolean);
+    return `<div class="panel${k === 0 ? " overall" : ""}">
+      <div class="ph"><span class="pt">${esc(title)}</span><span class="pv">${here ? ord(here[2]) : "–"}</span></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)} percentile by season: ${pts.filter(Boolean).map(p => `${p[3].name} ${ord(p[2])}`).join(", ")}">
+        ${[1, 99].map(v => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${v}</text>`).join("")}
+        <line class="mid" x1="${L}" x2="${W - R}" y1="${y(50)}" y2="${y(50)}"/><text x="${L - 4}" y="${y(50) + 3}" text-anchor="end">50</text>
+        ${seasons.map((t, i) => `<text x="${x(i)}" y="${H - 4}" text-anchor="middle"${String(t.season) === String(PICKER?.here) ? ' class="now"' : ""}>${short(t)}</text>`).join("")}
+        <path class="ln" d="${path}"/>
+        ${pts.filter(Boolean).map(p => `<circle class="pt-dot ${dot(p[2])}" cx="${p[0]}" cy="${p[1]}" r="${String(p[3].season) === String(PICKER?.here) ? 5.5 : 4}"/>`).join("")}
+        ${pts.filter(Boolean).map(p => `<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${esc(title)} · ${esc(p[3].name)}${p[3].early ? " so far" : ""}: ${ord(p[2])}"/>`).join("")}
+      </svg></div>`;
+  }).join("");
+  document.getElementById("trend-table").innerHTML = `<table><thead><tr><th>Category</th>${seasons.map(t => `<th>${esc(t.name)}${t.early ? "*" : ""}</th>`).join("")}</tr></thead><tbody>${
+    series.map(([title, vals]) => `<tr><td>${esc(title)}</td>${vals.map(v => `<td>${v == null || !isFinite(v) ? "–" : ord(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  box.hidden = false;
+}
+// One tooltip for every panel's points
+document.addEventListener("pointerover", e => {
+  const tip = document.getElementById("tip"), hit = e.target.closest?.(".hit");
+  if (!hit) { tip.hidden = true; return; }
+  tip.textContent = hit.dataset.tip;
+  const r = hit.getBoundingClientRect();
+  tip.hidden = false;
+  tip.style.left = `${Math.min(r.left + r.width / 2 - tip.offsetWidth / 2, innerWidth - tip.offsetWidth - 8)}px`;
+  tip.style.top = `${r.top - tip.offsetHeight - 6}px`;
+});
 
 function start() {
 const early = DATA.early;
@@ -425,6 +520,6 @@ else {
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(d => { DATA = d; start(); })
     .catch(() => { document.getElementById("grid").innerHTML =
-      `<p class="note">No card for that player and season. <a href="microstats.html">Back to all players</a></p>`; });
+      `<p class="note">No card for that player and season. <a href="microstats.html">See all players</a></p>`; });
 }
 </script>

@@ -72,7 +72,7 @@ td a { color: var(--ink); font-weight: 600; text-decoration: none; } td a:hover 
 <div class="wrap">
   <header>
     <div>
-      <p class="status" style="margin:0 0 6px"><a href="./" style="color:var(--accent);font-weight:600">← Home</a></p>
+      <p class="status" style="margin:0 0 6px;display:flex;gap:16px"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }" style="color:var(--accent);font-weight:600">← Back</a><a href="./" style="color:var(--accent);font-weight:600">Home</a></p>
       <h1>NHL Goalies <span id="season-name"></span></h1>
       <p class="status" id="status">Loading…</p>
       <p class="status"><a href="nhle.html" style="color:var(--accent);font-weight:600">NHLe prospect cards →</a></p>

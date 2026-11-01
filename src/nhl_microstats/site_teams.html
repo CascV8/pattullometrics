@@ -47,7 +47,7 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 </head>
 <body>
 <div class="wrap">
-  <p class="nav"><a href="./">← Home</a></p>
+  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a></p>
   <div class="head"><h1>NHL teams</h1>
     <label class="season" id="season-label" hidden>Season <select id="season"></select></label></div>
   <p class="sub" id="sub"></p>

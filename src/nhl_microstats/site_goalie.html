@@ -54,7 +54,7 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 </head>
 <body>
 <div class="wrap">
-  <p class="nav"><a href="microstats.html?pos=G" id="back">← All goalies</a><a href="./">Home</a>
+  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a>
     <label for="season" id="season-label" hidden>Season <select id="season"></select></label></p>
   <div id="card"><p class="note">Loading…</p></div>
   <p class="note" id="foot"></p>
@@ -69,7 +69,6 @@ const fmt = { gsax_gp: v => (v >= 0 ? "+" : "") + v.toFixed(2), sv: v => v.toFix
 const params = new URLSearchParams(location.search), id = +params.get("id");
 
 async function show(y, seasons) {
-  $("back").href = `microstats.html?pos=G&season=${y}`;
   let data;
   try { data = await (await fetch(`data/${y}/goalies.json`)).json(); } catch (e) { data = { goalies: [] }; }
   const g = data.goalies.find(x => x.id === id);

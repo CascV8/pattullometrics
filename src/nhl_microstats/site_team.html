@@ -112,7 +112,7 @@ section { margin-top: 30px; }
 </head>
 <body>
 <div class="wrap">
-  <p class="nav"><a href="teams.html" id="all-teams">← All teams</a><a href="./">Home</a>
+  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a>
     <label class="season" id="season-label" hidden>Season <select id="season"></select></label></p>
   <p class="status" id="status">Loading…</p>
   <div id="page" hidden>
@@ -300,7 +300,6 @@ document.addEventListener("click", e => {
   $("season").innerHTML = seasons.map(s => `<option value="${s.season}">${esc(s.name)}</option>`).join("");
   $("season").value = y; $("season-label").hidden = seasons.length < 2;
   $("season").addEventListener("change", e => { location.search = `?team=${abbr}&season=${e.target.value}`; });
-  $("all-teams").href = `teams.html?season=${y}`;
   try {
     if (!abbr || !y) throw new Error("no team");
     const r = await fetch(`data/teams/${y}/${abbr}.json`);
