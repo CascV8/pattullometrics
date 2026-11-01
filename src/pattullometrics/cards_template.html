@@ -45,6 +45,10 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
 
 .grid { display: grid; grid-template-columns: minmax(0, 1240px); gap: 28px; align-items: start; }
+/* The cards and the by-season panels share one width: the cards set it, the panels fill it without widening it */
+.body { width: fit-content; max-width: min(100%, 1240px); }
+.body .grid { grid-template-columns: minmax(0, max-content); }
+.body .trend { contain: inline-size; }
 /* Each player is a pair: the compact categories card, and the stat card beside it (under it on a phone).
    The stat card is as wide as its content (the width at which no stat name wraps) and the categories
    card stretches to the same height. */
@@ -67,9 +71,9 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .trend-head button:disabled { opacity: .6; cursor: progress; }
 #trend-shot { padding: 4px 0; }
 .capturing-trend#trend-shot { padding: 14px; background: var(--bg); }
-/* Overall and the eight categories: three by three (one column on a phone) */
+/* Overall and the eight categories: three by three (one column where the stat card goes to one) */
 .panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 640px) { .panels { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) { .panels { grid-template-columns: minmax(0, 1fr); } }   /* as the stat card's sections */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 6px; min-width: 0; }
 .panel .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel .pt { font: 600 .8rem var(--display); letter-spacing: .07em; text-transform: uppercase; }
@@ -78,7 +82,9 @@ select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surfa
 .panel .grid-l { stroke: var(--line); stroke-width: 1; }
 .panel .mid { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
 .panel .ln { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .75; }
-.panel .pt-dot { stroke: var(--surface); stroke-width: 2; }
+.panel .pt-dot { stroke: var(--surface); stroke-width: 2; r: 4px; transition: r .12s ease; }
+.panel .pt-dot.now { r: 5.5px; }   /* the season this card is */
+.panel .pt:hover .pt-dot { r: 7.5px; }   /* the point under the cursor grows */
 .panel .hit { fill: transparent; cursor: default; }
 .panel text { fill: var(--muted); font: 600 9px var(--body); }
 .panel text.now { fill: var(--ink); font-weight: 700; }   /* the season this card is */
@@ -202,6 +208,7 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
     <span>Tick = league median. A higher percentile is always better: for stats where fewer is better (penalties taken, goals and xG against on/off ice, beaten on goals against), fewer ranks higher.</span>
   </div>
 
+  <div class="body">
   <div class="grid" id="grid"></div>
 
   <div class="trend" id="trend" hidden>
@@ -212,6 +219,7 @@ h3 { font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppe
       <div class="panels" id="panels"></div>
     </div>
     <details><summary>Show as a table</summary><div id="trend-table"></div></details>
+  </div>
   </div>
   <div class="tip" id="tip" hidden></div>
 
@@ -479,8 +487,7 @@ function renderTrend() {
         <line class="mid" x1="${L}" x2="${W - R}" y1="${y(50)}" y2="${y(50)}"/><text x="${L - 4}" y="${y(50) + 3}" text-anchor="end">50</text>
         ${seasons.map((t, i) => `<text x="${x(i)}" y="${H - 4}" text-anchor="middle"${String(t.season) === String(PICKER?.here) ? ' class="now"' : ""}>${short(t)}</text>`).join("")}
         <path class="ln" d="${path}"/>
-        ${pts.filter(Boolean).map(p => `<circle class="pt-dot ${dot(p[2])}" cx="${p[0]}" cy="${p[1]}" r="${String(p[3].season) === String(PICKER?.here) ? 5.5 : 4}"/>`).join("")}
-        ${pts.filter(Boolean).map(p => `<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${ord(p[2])}"/>`).join("")}
+        ${pts.filter(Boolean).map(p => `<g class="pt"><circle class="pt-dot ${dot(p[2])}${String(p[3].season) === String(PICKER?.here) ? " now" : ""}" cx="${p[0]}" cy="${p[1]}" r="4"/><circle class="hit" cx="${p[0]}" cy="${p[1]}" r="11" data-tip="${ord(p[2])}"/></g>`).join("")}
       </svg></div>`;
   }).join("");
   document.getElementById("trend-table").innerHTML = `<table><thead><tr><th>Category</th>${seasons.map(t => `<th>${esc(t.name)}${t.early ? "*" : ""}</th>`).join("")}</tr></thead><tbody>${
