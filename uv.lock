@@ -964,7 +964,7 @@ wheels = [
 [[package]]
 name = "team-metrics"
 version = "0.1.0"
-source = { git = "https://github.com/CascV8/team-metrics.git#6b221df5dabb6e375624bec8a93f1e62844bdccb" }
+source = { git = "https://github.com/CascV8/team-metrics.git#55675c50042ea0bb2e263c7783d40f71140a0a53" }
 dependencies = [
     { name = "nhl-microstats" },
     { name = "numpy" },
