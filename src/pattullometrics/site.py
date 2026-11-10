@@ -220,15 +220,24 @@ def export_site(seasons=None, out: Path | str = OUT) -> Path:
     for name, src in {**GOALIE_PAGES, **TEAM_PAGES}.items():
         shutil.copy(Path(__file__).with_name(src), tmp / name)
     # team pages are an extra, like the goalie cards: a site without them beats no site
-    team_seasons = []
+    # every season's skaters, the pool the teams' roster ratings are curved against; and each team's analytical and
+    # standings ranks by season (data/teams/history.json, the team page's chart)
+    team_seasons, history = [], {}
+    pool = {y: json.loads((tmp / "data" / str(y) / "index.json").read_text(encoding="utf-8"))["rows"]
+            for y in seasons if (tmp / "data" / str(y) / "index.json").exists()}
     for y in sorted(seasons, reverse=True):
         try:
-            if team_pages.export_teams(tmp / "data" / str(y), y, tmp):
+            if ranked := team_pages.export_teams(tmp / "data" / str(y), y, tmp, pool):
                 team_seasons.append({"season": y, "name": season_name([y])})
+                for abbr, r in ranked.items():
+                    history.setdefault(abbr, []).append({"season": y, "name": season_name([y])} | r)
         except Exception as e:
             log.warning("%s: no team pages (%s)", y, e)
     if team_seasons:
         (tmp / "data" / "teams" / "seasons.json").write_text(json.dumps(team_seasons), encoding="utf-8")
+        for h in history.values():
+            h.sort(key=lambda e: e["season"])
+        (tmp / "data" / "teams" / "history.json").write_text(json.dumps(history), encoding="utf-8")
     # The card template is a fragment (cards.html gets wrapped by whatever shows it); give it a document head.
     head = '<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
     (tmp / "player.html").write_text(head + TEMPLATE.read_text(encoding="utf-8").replace(

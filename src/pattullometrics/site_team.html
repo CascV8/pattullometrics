@@ -56,6 +56,37 @@ section { margin-top: 30px; }
 .team-ovr .k { font: 600 .8rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .team-ovr .r { font: 700 1.15rem var(--display); letter-spacing: .02em; }
 .team-ovr .pct { font-size: 3.4rem; min-width: 2.6em; padding: 14px 16px; border-radius: 10px; }
+/* the standings place by P%, beside the analytical overall: the same box, smaller */
+.team-ovr .standing { display: grid; justify-items: center; gap: 4px; padding-left: 14px; border-left: 1px solid var(--line); }
+.team-ovr .standing .pct { font-size: 2rem; min-width: 2.4em; padding: 9px 10px; border-radius: 8px; }
+
+/* tabs: the lineup, and the rank history chart */
+.tabs { margin-top: 30px; }
+.tabs + div > section:first-child { margin-top: 18px; }
+
+/* rank history: analytical overall vs standings by P%, one line each, rank 1 at the top */
+.chart { position: relative; max-width: 820px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 14px 8px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .grid line { stroke: var(--line); stroke-width: 1; }
+.chart .axis text { fill: var(--muted); font: 600 12px var(--body); font-variant-numeric: tabular-nums; }
+.chart .series path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .series circle { stroke: var(--surface); stroke-width: 2; }
+.chart .lbl { fill: var(--ink); font: 600 12px var(--body); }
+.chart .xhair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 8px; font: 600 .82rem var(--body); color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid; }
+.legend i.dash { border-top-style: dashed; }
+.tip { position: absolute; pointer-events: none; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font: 600 .8rem var(--body); white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.tip b { font: 700 .9rem var(--display); letter-spacing: .04em; display: block; margin-bottom: 3px; }
+.tip .row { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.tip .row strong { color: var(--ink); }
+.tip .sw { width: 10px; height: 10px; border-radius: 50%; }
+table.hist { border-collapse: collapse; margin-top: 14px; font-size: .86rem; font-variant-numeric: tabular-nums; }
+table.hist th, table.hist td { padding: 5px 14px 5px 0; text-align: left; border-bottom: 1px solid var(--line); }
+table.hist th { font: 600 .74rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* team metrics: one square per metric, no container: label centred over a big box */
 .metrics { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 16px 12px; }
@@ -123,6 +154,14 @@ section { margin-top: 30px; }
     <div class="metrics" id="metrics"></div>
   </section>
 
+  <div class="tabs bar">
+    <div class="seg" role="tablist" aria-label="Team page">
+      <button type="button" role="tab" data-tab="lineup" aria-pressed="true">Lineup</button>
+      <button type="button" role="tab" data-tab="history" aria-pressed="false">Rank history</button>
+    </div>
+  </div>
+
+  <div id="tab-lineup">
   <section>
     <div class="bar"><h2 style="margin:0">Lineup</h2>
       <div class="seg" role="group" aria-label="Lineup view">
@@ -156,6 +195,17 @@ section { margin-top: 30px; }
     </div>
   </section>
   </div>
+
+  <div id="tab-history" hidden>
+  <section>
+    <h2>Analytical rank vs standings</h2>
+    <p class="note">Each season, the team's analytical OVR (the average of its metric ranks, ranked again) against where it
+      stood in the league by points percentage. 1st is at the top.</p>
+    <div class="chart" id="chart"></div>
+    <div id="hist-table"></div>
+  </section>
+  </div>
+  </div>
 </div>
 
 <script>
@@ -188,21 +238,92 @@ function render() {
 document.title = `${TEAM.name} · Pattullometrics`;
 $("head").innerHTML = `<span class="logo" id="logo"></span>
   <div class="titles"><h1>${esc(TEAM.name)}</h1><div class="sub">${TEAM.seasonName} · ${TEAM.record} · ${TEAM.points} pts · players' percentiles at 5v5</div></div>
-  <div class="team-ovr" title="Team overall: the average of its metric ranks, ranked against all ${TEAM.teams} teams">
-    <div class="txt"><span class="k">Team overall</span><span class="r">of ${TEAM.teams} teams</span></div>${rankBox(TEAM.rank)}</div>`;
+  <div class="team-ovr">
+    <div class="txt"><span class="k">Analytical OVR</span><span class="r">of ${TEAM.teams} teams</span></div>
+    <span title="Analytical OVR: the average of the team's metric ranks, ranked against all ${TEAM.teams} teams">${rankBox(TEAM.rank)}</span>
+    ${TEAM.standing !== undefined ? `<div class="standing" title="Where the team stands in the league by points percentage">
+      <span class="k">Standings</span>${rankBox(TEAM.standing)}<span class="k">by P%</span></div>` : ""}</div>`;
 
 loadLogo(); document.fonts.ready.then(fitLogo); addEventListener("resize", fitLogo);
 
 // Team metrics, in order: each team's rank among the league's (1st best); P%, PP% and PK% with the stat itself under it.
-$("metrics").innerHTML = TEAM.metrics.map(m => `<div class="metric"><span class="k">${esc(m.k)}</span>${rankBox(m.rank)}
-  ${m.value ? `<span class="v">${esc(m.value)}</span>` : ""}</div>`).join("");
+// Forwards and Blueline (the roster ratings) show their percentile among every team-season tracked instead of a rank.
+const curvedTitle = m => `${m.k === "Blueline" ? "Defencemen" : "Forwards"}: 5v5 overall by ice time, curved against every `
+  + `team-season tracked${m.rank ? ` (${ordinal(m.rank)} of ${TEAM.teams} this season)` : ""}`;
+$("metrics").innerHTML = TEAM.metrics.map(m => `<div class="metric"><span class="k">${esc(m.k)}</span>${"pct" in m
+    ? `<span title="${esc(curvedTitle(m))}" style="display:grid"><span class="pct ${tier(m.pct)}">${m.pct == null ? "–" : Math.min(Math.max(Math.round(m.pct), 1), 99)}</span></span>
+       <span class="v">pctile${m.value ? ` · ${esc(m.value)}` : ""}</span>` : `${rankBox(m.rank)}
+  ${m.value ? `<span class="v">${esc(m.value)}</span>` : ""}`}</div>`).join("");
 
 // open on a view with #power-play or #penalty-kill (shareable), and on ?lineup=opening if asked
 if (location.hash === "#power-play") view = "pp";
 if (location.hash === "#penalty-kill") view = "pk";
 LU = TEAM.lineups.find(l => l.key === new URLSearchParams(location.search).get("lineup")) || TEAM.lineups[0];
 drawLineup();
+showTab(location.hash === "#history" ? "history" : "lineup");
 $("status").hidden = true; $("page").hidden = false; fitLogo();
+}
+
+// ── Tabs: the lineup, or the rank history (#history, shareable) ─────────────────────────────────────────
+function showTab(t) {
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === t));
+  $("tab-lineup").hidden = t !== "lineup"; $("tab-history").hidden = t !== "history";
+  if (t === "history") drawHistory();
+}
+
+// ── Rank history: the analytical OVR and the standings (by P%) by season, one line each, 1st at the top ──────
+// Colours checked for colour-blind separation on the surface; the standings line is dashed as well.
+let HISTORY;
+const SERIES = [{ k: "rank", name: "Analytical OVR", short: "Analytical", c: "#4a8ad6", dash: "" },
+                { k: "standing", name: "Standings (P%)", short: "Standings", c: "#d06a1f", dash: "6 5" }];
+async function drawHistory() {
+  if (HISTORY === undefined) {
+    try { HISTORY = (await (await fetch("data/teams/history.json")).json())[TEAM.abbrev] || []; } catch { HISTORY = []; }
+  }
+  const h = HISTORY;
+  if (!h.length) { $("chart").innerHTML = `<p class="note" style="margin:0">No seasons tracked yet.</p>`; return; }
+  const W = 780, H = 300, L = 44, R = 130, T = 14, B = 30;
+  const n = Math.max(...h.map(e => e.teams));
+  const x = i => h.length < 2 ? (L + W - R) / 2 : L + 20 + i * (W - L - R - 40) / (h.length - 1);
+  const y = r => T + (r - 1) * (H - T - B) / Math.max(n - 1, 1);
+  const ticks = [1, 8, 16, 24, n].filter((v, i, a) => v <= n && a.indexOf(v) === i);
+  const lines = SERIES.map(s => {
+    const pts = h.map((e, i) => e[s.k] == null ? null : [x(i), y(e[s.k])]);
+    const d = pts.map((p, i) => p ? `${i && pts[i - 1] ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}` : "").join("");
+    const i = pts.findLastIndex(Boolean);
+    return `<g class="series"><path d="${d}" stroke="${s.c}" stroke-dasharray="${s.dash}"/>
+      ${pts.map((p, j) => p ? `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="${s.c}"><title>${esc(h[j].name)}: ${s.name} ${ordinal(h[j][s.k])}</title></circle>` : "").join("")}
+      ${i >= 0 ? `<text class="lbl" x="${pts[i][0] + 12}" y="${pts[i][1] + 4}">${s.short} ${ordinal(h[i][s.k])}</text>` : ""}</g>`;
+  });
+  $("chart").innerHTML = `<div class="legend">${SERIES.map(s => `<span><i class="${s.dash ? "dash" : ""}" style="border-color:${s.c}"></i>${s.name}</span>`).join("")}</div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(TEAM.name)}: analytical rank and standings rank by season">
+      <g class="grid">${ticks.map(t => `<line x1="${L}" x2="${W - R + 10}" y1="${y(t)}" y2="${y(t)}"/>`).join("")}</g>
+      <g class="axis">${ticks.map(t => `<text x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${ordinal(t)}</text>`).join("")}
+        ${h.map((e, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${esc(e.name)}</text>`).join("")}</g>
+      <line class="xhair" id="xhair" y1="${T}" y2="${H - B}" visibility="hidden"/>
+      ${lines.join("")}
+    </svg><div class="tip" id="tip" hidden></div>`;
+  // the two end labels can collide: keep them 15 apart
+  const labels = [...$("chart").querySelectorAll(".lbl")].sort((p, q) => p.getAttribute("y") - q.getAttribute("y"));
+  if (labels.length === 2 && labels[1].getAttribute("y") - labels[0].getAttribute("y") < 15)
+    labels[1].setAttribute("y", +labels[0].getAttribute("y") + 15);
+  const svg = $("chart").querySelector("svg"), chart = $("chart"), tip = $("tip");
+  svg.addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * W / r.width;
+    const i = h.reduce((best, _, j) => Math.abs(x(j) - sx) < Math.abs(x(best) - sx) ? j : best, 0), e = h[i];
+    $("xhair").setAttribute("x1", x(i)); $("xhair").setAttribute("x2", x(i)); $("xhair").setAttribute("visibility", "visible");
+    tip.innerHTML = `<b>${esc(e.name)}</b>${SERIES.map(s => `<div class="row"><span class="sw" style="background:${s.c}"></span>${s.name}
+      <strong>${e[s.k] == null ? "–" : `${ordinal(e[s.k])} of ${e.teams}`}</strong></div>`).join("")}`;
+    tip.hidden = false;
+    const box = chart.getBoundingClientRect(), px = r.left - box.left + x(i) * r.width / W + 14;
+    tip.style.left = Math.max(8, Math.min(px, box.width - tip.offsetWidth - 8)) + "px";
+    tip.style.top = (ev.clientY - box.top + 14) + "px";
+  });
+  svg.addEventListener("pointerleave", () => { tip.hidden = true; $("xhair").setAttribute("visibility", "hidden"); });
+  const gap = e => e.rank == null || e.standing == null ? "–" : e.standing === e.rank ? "Even"
+    : e.standing < e.rank ? `${e.rank - e.standing} place${e.rank - e.standing > 1 ? "s" : ""} above its analytics` : `${e.standing - e.rank} place${e.standing - e.rank > 1 ? "s" : ""} below its analytics`;
+  $("hist-table").innerHTML = `<table class="hist"><thead><tr><th>Season</th>${SERIES.map(s => `<th>${s.name}</th>`).join("")}<th>Standings vs analytics</th></tr></thead>
+    <tbody>${[...h].reverse().map(e => `<tr><td>${esc(e.name)}</td>${SERIES.map(s => `<td>${e[s.k] == null ? "–" : ordinal(e[s.k])}</td>`).join("")}<td>${gap(e)}</td></tr>`).join("")}</tbody></table>`;
 }
 
 // ── Lineup: the version shown (latest from Daily Faceoff, or after the trade deadline, or opening night) ────────
@@ -284,6 +405,8 @@ document.addEventListener("click", e => {
   const v = e.target.closest("[data-view]"), u = e.target.closest("[data-unit]");
   if (v) { view = v.dataset.view; unit = 0; show(); }
   if (u) { unit = +u.dataset.unit; show(); }
+  const tb = e.target.closest("[data-tab]");
+  if (tb) { showTab(tb.dataset.tab); history.replaceState(null, "", tb.dataset.tab === "history" ? "#history" : location.pathname + location.search); }
   const lv = e.target.closest("[data-version]");
   if (lv) { LU = TEAM.lineups.find(l => l.key === lv.dataset.version); unit = 0; drawLineup(); }
 });

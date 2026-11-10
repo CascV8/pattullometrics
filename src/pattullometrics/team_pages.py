@@ -16,7 +16,7 @@ from pathlib import Path
 
 from nhl_microstats import collect
 from nhl_microstats.percentile import season_name
-from team_metrics.teams import TEAM_STATS, _get, _group, season_teams
+from team_metrics.teams import ROSTER, TEAM_STATS, _get, _group, season_teams
 
 log = logging.getLogger("pattullometrics.team_pages")
 
@@ -42,19 +42,22 @@ def _logo(abbr: str, out: Path) -> None:
 # ── Matching Daily Faceoff's names to NHL ids ────────────────────────────────────────────────────────────
 
 
-def export_teams(season_dir: Path, y: int, out: Path) -> int:
+def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]] | None = None) -> dict:
     """Write data/teams/<y>/ into ``out`` from season ``y``'s exported skaters and goalies (``season_dir``): the season
     under way from Daily Faceoff and today's standings, a complete season from its lineup after the trade deadline
-    (team_seasons/<y>.json). Returns the number of team pages written."""
+    (team_seasons/<y>.json). ``pool``: every tracked season's skater rows, which the roster ratings are curved against.
+    Returns each team's analytical rank and its rank in the standings by P%, {abbr: {"rank", "standing", "teams"}}
+    (empty when there are no team pages for the season)."""
     rows = json.loads((season_dir / "index.json").read_text(encoding="utf-8"))["rows"]
     gpath = season_dir / "goalies.json"
     gdata = json.loads(gpath.read_text(encoding="utf-8")) if gpath.exists() else {"goalies": []}
     skaters = {r["id"]: r for r in rows}
     goalies = {g["id"]: g for g in gdata["goalies"]}
-    st = season_teams(y, rows, gdata)
+    st = season_teams(y, rows, gdata, pool)
     if st is None:
-        return 0
+        return {}
     teams, values, ranks, overall, metrics = st["teams"], st["values"], st["ranks"], st["overall"], st["metrics"]
+    curved = st["curved"]
 
 
     folder = out / "data" / "teams" / str(y)
@@ -90,14 +93,20 @@ def export_teams(season_dir: Path, y: int, out: Path) -> int:
                     "pp": [cards("pp1"), cards("pp2")], "pk": [cards("pk1"), cards("pk2")], "injured": cards("ir"),
                     "extras": None if lu["extras"] is None else [card(*p) for p in lu["extras"]]}
 
-        # the metrics in order, each with its rank; P%, PP% and PK% with the stat itself
-        shown = [{"k": m, "rank": ranks[m][abbr],
-                  "value": f"{100 * values[abbr][m]:.1f}%" if m in dict(TEAM_STATS).values() and values[abbr][m] is not None else ""}
-                 for m in metrics]
+        # the metrics in order, each with its rank; P%, PP% and PK% with the stat itself; the roster ratings with
+        # their percentile among every team-season tracked (pct), which the page shows in place of the rank
+        def metric(m: str) -> dict:
+            v = values[abbr][m]
+            out = {"k": m, "rank": ranks[m][abbr],
+                   "value": f"{100 * v:.1f}%" if m in dict(TEAM_STATS).values() and v is not None else ""}
+            if m in ROSTER.values():
+                out |= {"pct": curved[abbr][m], "value": f"avg {v:.0f}" if v is not None else ""}
+            return out
+        shown = [metric(m) for m in metrics]
         page = {
             "abbrev": abbr, "name": name, "season": y, "seasonName": season_name([y]),
             "record": t["record"], "points": t["points"], "gp": t["gp"],
-            "rank": overall[abbr], "teams": len(values), "metrics": shown,
+            "rank": overall[abbr], "standing": ranks["P%"][abbr], "teams": len(values), "metrics": shown,
             "lineups": [lineup(lu) for lu in t["lineups"]], "goalieNote": note,
         }
         (folder / f"{abbr}.json").write_text(json.dumps(page), encoding="utf-8")
@@ -106,4 +115,4 @@ def export_teams(season_dir: Path, y: int, out: Path) -> int:
     index.sort(key=lambda t: (t["rank"] or len(index) + 1, t["name"]))   # best first
     (folder / "index.json").write_text(json.dumps({"season": y, "seasonName": season_name([y]), "teams": index}), encoding="utf-8")
     log.info("teams: %d team pages", len(index))
-    return len(index)
+    return {a: {"rank": overall[a], "standing": ranks["P%"][a], "teams": len(values)} for a in values}
