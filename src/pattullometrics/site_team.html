@@ -83,9 +83,6 @@ section { margin-top: 30px; }
 .tip .row { display: flex; align-items: center; gap: 7px; color: var(--muted); }
 .tip .row strong { color: var(--ink); }
 .tip .sw { width: 10px; height: 10px; border-radius: 50%; }
-table.hist { border-collapse: collapse; margin-top: 14px; font-size: .86rem; font-variant-numeric: tabular-nums; }
-table.hist th, table.hist td { padding: 5px 14px 5px 0; text-align: left; border-bottom: 1px solid var(--line); }
-table.hist th { font: 600 .74rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* team metrics: one square per metric, no container: label centred over a big box */
 .metrics { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 16px 12px; }
@@ -205,7 +202,6 @@ table.hist th { font: 600 .74rem var(--display); letter-spacing: .1em; text-tran
     <p class="note">Each season, the team's analytical OVR (the average of its metric ranks, ranked again) against where it
       stood in the league by points percentage. 1st is at the top.</p>
     <div class="chart" id="chart"></div>
-    <div id="hist-table"></div>
   </section>
   </div>
   </div>
@@ -323,10 +319,6 @@ async function drawHistory() {
     tip.style.top = (ev.clientY - box.top + 14) + "px";
   });
   svg.addEventListener("pointerleave", () => { tip.hidden = true; $("xhair").setAttribute("visibility", "hidden"); });
-  const gap = e => e.rank == null || e.standing == null ? "–" : e.standing === e.rank ? "Even"
-    : e.standing < e.rank ? `${e.rank - e.standing} place${e.rank - e.standing > 1 ? "s" : ""} above its analytics` : `${e.standing - e.rank} place${e.standing - e.rank > 1 ? "s" : ""} below its analytics`;
-  $("hist-table").innerHTML = `<table class="hist"><thead><tr><th>Season</th>${SERIES.map(s => `<th>${s.name}</th>`).join("")}<th>Standings vs analytics</th></tr></thead>
-    <tbody>${[...h].reverse().map(e => `<tr><td>${esc(e.name)}</td>${SERIES.map(s => `<td>${e[s.k] == null ? "–" : ordinal(e[s.k])}</td>`).join("")}<td>${gap(e)}</td></tr>`).join("")}</tbody></table>`;
 }
 
 // ── Lineup: the version shown (latest from Daily Faceoff, or after the trade deadline, or opening night) ────────
