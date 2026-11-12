@@ -240,7 +240,7 @@ function card(p, slot) {
 function render() {
 document.title = `${TEAM.name} · Pattullometrics`;
 $("head").innerHTML = `<span class="logo" id="logo"></span>
-  <div class="titles"><h1>${esc(TEAM.name)}</h1><div class="sub">${TEAM.seasonName} · ${TEAM.record} · ${TEAM.points} pts</div></div>
+  <div class="titles"><h1>${esc(TEAM.name)}</h1><div class="sub">${TEAM.seasonName} · ${TEAM.record}${TEAM.gp ? ` · ${(50 * TEAM.points / TEAM.gp).toFixed(1)} P%` : ""} · ${TEAM.points} pts</div></div>
   <div class="team-ovr">
     <div class="txt"><span class="k">Analytical OVR</span><span class="r">of ${TEAM.teams} teams</span></div>
     <span title="Analytical OVR: the average of the team's metric ranks, ranked against all ${TEAM.teams} teams">${rankBox(TEAM.rank)}</span>
