@@ -247,12 +247,12 @@ $("head").innerHTML = `<span class="logo" id="logo"></span>
 loadLogo(); document.fonts.ready.then(fitLogo); addEventListener("resize", fitLogo);
 
 // Team metrics, in order: each team's rank among the league's (1st best); P%, PP% and PK% with the stat itself under it.
-// Forwards and Blueline (the roster ratings) show their percentile among every team-season tracked instead of a rank.
+// Forwards and Blueline (the roster ratings) show their percentile among every team-season tracked instead of a rank,
+// with its suffix (56th) and nothing under it.
 const curvedTitle = m => `${m.k === "Blueline" ? "Defencemen" : "Forwards"}: 5v5 overall by ice time, curved against every `
   + `team-season tracked${m.rank ? ` (${ordinal(m.rank)} of ${TEAM.teams} this season)` : ""}`;
 $("metrics").innerHTML = TEAM.metrics.map(m => `<div class="metric"><span class="k">${esc(m.k)}</span>${"pct" in m
-    ? `<span title="${esc(curvedTitle(m))}" style="display:grid"><span class="pct ${tier(m.pct)}">${m.pct == null ? "–" : Math.min(Math.max(Math.round(m.pct), 1), 99)}</span></span>
-       <span class="v">pctile${m.value ? ` · ${esc(m.value)}` : ""}</span>` : `${rankBox(m.rank)}
+    ? `<span title="${esc(curvedTitle(m))}" style="display:grid"><span class="pct ${tier(m.pct)}">${shown(m.pct)}</span></span>` : `${rankBox(m.rank)}
   ${m.value ? `<span class="v">${esc(m.value)}</span>` : ""}`}</div>`).join("");
 
 // open on a view with #power-play or #penalty-kill (shareable), and on ?lineup=opening if asked

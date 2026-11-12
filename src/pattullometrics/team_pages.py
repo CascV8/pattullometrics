@@ -100,7 +100,7 @@ def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]
             out = {"k": m, "rank": ranks[m][abbr],
                    "value": f"{100 * v:.1f}%" if m in dict(TEAM_STATS).values() and v is not None else ""}
             if m in ROSTER.values():
-                out |= {"pct": curved[abbr][m], "value": f"avg {v:.0f}" if v is not None else ""}
+                out |= {"pct": curved[abbr][m], "value": ""}
             return out
         shown = [metric(m) for m in metrics]
         page = {
