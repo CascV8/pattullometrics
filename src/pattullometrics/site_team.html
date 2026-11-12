@@ -56,9 +56,8 @@ section { margin-top: 30px; }
 .team-ovr .k { font: 600 .8rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .team-ovr .r { font: 700 1.15rem var(--display); letter-spacing: .02em; }
 .team-ovr .pct { font-size: 3.4rem; min-width: 2.6em; padding: 14px 16px; border-radius: 10px; }
-/* the standings place by P%, beside the analytical overall: the same box, smaller */
-.team-ovr .standing { display: grid; justify-items: center; gap: 4px; padding-left: 14px; border-left: 1px solid var(--line); }
-.team-ovr .standing .pct { font-size: 2rem; min-width: 2.4em; padding: 9px 10px; border-radius: 8px; }
+/* the standings place by P%, beside the analytical overall: the same labels and box */
+.team-ovr .standing { display: flex; align-items: center; gap: 14px; padding-left: 14px; border-left: 1px solid var(--line); }
 
 /* tabs: the lineup, and the rank history chart */
 .tabs { margin-top: 30px; }
@@ -138,6 +137,10 @@ table.hist th { font: 600 .74rem var(--display); letter-spacing: .1em; text-tran
   .team-head { flex-wrap: wrap; } .team-ovr { margin-left: 0; }
   .team-head h1 { font-size: 2rem; }
   .zone .row { flex-wrap: wrap; }
+}
+@media (max-width: 560px) {   /* both boxes side by side on a phone */
+  .team-ovr, .team-ovr .standing { gap: 8px; } .team-ovr .standing { padding-left: 8px; }
+  .team-ovr .pct { font-size: 2.2rem; padding: 10px 10px; }
 }
 </style>
 </head>
@@ -242,7 +245,7 @@ $("head").innerHTML = `<span class="logo" id="logo"></span>
     <div class="txt"><span class="k">Analytical OVR</span><span class="r">of ${TEAM.teams} teams</span></div>
     <span title="Analytical OVR: the average of the team's metric ranks, ranked against all ${TEAM.teams} teams">${rankBox(TEAM.rank)}</span>
     ${TEAM.standing !== undefined ? `<div class="standing" title="Where the team stands in the league by points percentage">
-      <span class="k">Standings</span>${rankBox(TEAM.standing)}<span class="k">by P%</span></div>` : ""}</div>`;
+      <div class="txt"><span class="k">Standings</span><span class="r">by P%</span></div>${rankBox(TEAM.standing)}</div>` : ""}</div>`;
 
 loadLogo(); document.fonts.ready.then(fitLogo); addEventListener("resize", fitLogo);
 
