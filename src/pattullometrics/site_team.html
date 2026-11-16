@@ -30,8 +30,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(
 a { color: var(--accent); }
 .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
 .nav { margin: 0 0 14px; font: 600 .86rem var(--body); display: flex; align-items: center; gap: 14px; }
-.nav .season { margin-left: auto; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-.nav select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+/* the season picker sits beside the Lineup / Rank history tabs */
+.season { color: var(--muted); font: 600 .86rem var(--body); display: flex; align-items: center; gap: 8px; }
+.season select { font: 600 .9rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 8px; }
 h2 { font: 600 .8rem var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
 section { margin-top: 30px; }
@@ -162,8 +163,7 @@ section { margin-top: 30px; }
 </head>
 <body>
 <div class="wrap">
-  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a>
-    <label class="season" id="season-label" hidden>Season <select id="season"></select></label></p>
+  <p class="nav"><a href="./" class="back-link" onclick="if (document.referrer &amp;&amp; history.length &gt; 1) { history.back(); return false; }">← Back</a><a href="./">Home</a></p>
   <p class="status" id="status">Loading…</p>
   <div id="page" hidden>
   <div id="analytics-shot">
@@ -183,6 +183,7 @@ section { margin-top: 30px; }
       <button type="button" role="tab" data-tab="lineup" aria-pressed="true">Lineup</button>
       <button type="button" role="tab" data-tab="history" aria-pressed="false">Rank history</button>
     </div>
+    <label class="season" id="season-label" hidden>Season <select id="season"></select></label>
   </div>
 
   <div id="tab-lineup">
