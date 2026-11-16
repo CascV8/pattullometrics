@@ -84,12 +84,14 @@ section { margin-top: 30px; }
 .tip .row strong { color: var(--ink); }
 .tip .sw { width: 10px; height: 10px; border-radius: 50%; }
 
-/* team metrics: one square per metric, no container: label centred over a big box */
-.metrics { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 16px 12px; }
-.metric { display: grid; justify-items: stretch; align-content: start; gap: 5px; }
+/* team metrics: one panel, a full rectangle of squares (the columns divide the metrics evenly, set from the page:
+   --c-lg, --c-md and --c-sm for wide, tablet and phone), each a label centred over a box as wide as its column */
+.metrics { display: grid; grid-template-columns: repeat(var(--c-lg, 6), 1fr); gap: 16px 12px;
+  padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.metric { display: grid; justify-items: stretch; align-content: start; gap: 5px; min-width: 0; }
 .metric .k { font: 600 .74rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center;
   white-space: nowrap; }
-.metric .pct { font-size: 1.5rem; aspect-ratio: 1.3; display: grid; place-items: center; padding: 0; border-radius: 7px; }
+.metric .pct { font-size: 1.9rem; min-width: 0; height: 68px; display: grid; place-items: center; padding: 0; border-radius: 7px; }
 .metric .v { font: 600 .78rem var(--body); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 
 /* lineup cards: taller, not wider: photo and name, then the scoring line beside the overall */
@@ -109,6 +111,21 @@ section { margin-top: 30px; }
 .pl .score b { color: var(--ink); font-weight: 700; }
 
 /* view switches */
+/* download: one card as a PNG, the analytics (header and metrics) with the rank history chart under them, never the lineup */
+.dl { margin-left: auto; font: 600 .78rem var(--body); letter-spacing: .03em; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.dl:disabled { opacity: .6; cursor: progress; }
+.shot-only { display: none; }
+.capturing { width: 920px; margin: 0; padding: 20px; background: var(--bg); }
+.capturing .chart { max-width: none; } .capturing .note { max-width: none; } .capturing .team-head .sub { white-space: nowrap; }
+.capturing .shot-only { display: revert; }
+.capturing .metrics { grid-template-columns: repeat(var(--c-lg, 6), 1fr); padding: 18px 20px; }
+.capturing .team-head { flex-wrap: nowrap; } .capturing .team-ovr { margin-left: auto; }
+.capturing .team-ovr .pct { font-size: 3.4rem; padding: 14px 16px; }
+.capturing .team-ovr, .capturing .team-ovr .standing { gap: 14px; } .capturing .team-ovr .standing { padding-left: 14px; }
+.capturing section { margin-top: 18px; }
+.shot-foot { margin-top: 12px; text-align: right; font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 10px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
 .seg button { font: 600 .82rem var(--body); letter-spacing: .03em; text-transform: uppercase; border: 0; background: none;
@@ -135,9 +152,11 @@ section { margin-top: 30px; }
   .team-head h1 { font-size: 2rem; }
   .zone .row { flex-wrap: wrap; }
 }
+@media (max-width: 800px) { .metrics { grid-template-columns: repeat(var(--c-md, 4), 1fr); } }
 @media (max-width: 560px) {   /* both boxes side by side on a phone */
+  .metrics { grid-template-columns: repeat(var(--c-sm, 3), 1fr); padding: 14px 10px; }
   .team-ovr, .team-ovr .standing { gap: 8px; } .team-ovr .standing { padding-left: 8px; }
-  .team-ovr .pct { font-size: 2.2rem; padding: 10px 10px; }
+  .team-ovr .pct { font-size: 1.9rem; min-width: 2.3em; padding: 9px 8px; }
 }
 </style>
 </head>
@@ -147,12 +166,17 @@ section { margin-top: 30px; }
     <label class="season" id="season-label" hidden>Season <select id="season"></select></label></p>
   <p class="status" id="status">Loading…</p>
   <div id="page" hidden>
+  <div id="analytics-shot">
   <header class="team-head" id="head"></header>
 
   <section>
-    <h2>Team metrics</h2>
+    <div class="bar"><h2 style="margin:0">Team metrics</h2>
+      <button type="button" class="dl" id="dl-analytics" title="The header, the team metrics and the rank history chart as one PNG">Download PNG</button></div>
     <div class="metrics" id="metrics"></div>
   </section>
+  <section class="shot-only" id="shot-history"></section>
+  <div class="shot-foot shot-only">Pattullometrics · 5v5</div>
+  </div>
 
   <div class="tabs bar">
     <div class="seg" role="tablist" aria-label="Team page">
@@ -246,13 +270,17 @@ $("head").innerHTML = `<span class="logo" id="logo"></span>
 loadLogo(); document.fonts.ready.then(fitLogo); addEventListener("resize", fitLogo);
 
 // Team metrics, in order: each team's rank among the league's (1st best); P%, PP% and PK% with the stat itself under it.
-// Forwards and Blueline (the roster ratings) show their percentile among every team-season tracked instead of a rank,
-// with its suffix (56th) and nothing under it.
-const curvedTitle = m => `${m.k === "Blueline" ? "Defencemen" : "Forwards"}: 5v5 overall by ice time, curved against every `
-  + `team-season tracked${m.rank ? ` (${ordinal(m.rank)} of ${TEAM.teams} this season)` : ""}`;
-$("metrics").innerHTML = TEAM.metrics.map(m => `<div class="metric"><span class="k">${esc(m.k)}</span>${"pct" in m
-    ? `<span title="${esc(curvedTitle(m))}" style="display:grid"><span class="pct ${tier(m.pct)}">${shown(m.pct)}</span></span>` : `${rankBox(m.rank)}
-  ${m.value ? `<span class="v">${esc(m.value)}</span>` : ""}`}</div>`).join("");
+// Forwards and Blueline (the roster ratings) show this season's rank like the rest, and under it their percentile
+// among every team-season in the curve's pool.
+const curvedTitle = m => `${m.k === "Blueline" ? "Defencemen" : "Forwards"}: 5v5 overall by ice time. The box is the rank among `
+  + `this season's ${TEAM.teams} teams; the percentile under it is against every team-season in the pool`;
+// P% isn't a square: it's beside the record, and its rank is the Standings box.
+const shownMetrics = TEAM.metrics.filter(m => m.k !== "P%");
+const cols = max => { for (let c = max; c >= 2; c--) if (shownMetrics.length % c === 0) return c; return max; };
+Object.entries({ "--c-lg": cols(7), "--c-md": cols(4), "--c-sm": cols(3) }).forEach(([k, v]) => $("metrics").style.setProperty(k, v));
+$("metrics").innerHTML = shownMetrics.map(m => `<div class="metric"${"pct" in m ? ` title="${esc(curvedTitle(m))}"` : ""}>
+  <span class="k">${esc(m.k)}</span>${rankBox(m.rank)}
+  ${"pct" in m ? (m.pct == null ? "" : `<span class="v">${shown(m.pct)} pctile</span>`) : m.value ? `<span class="v">${esc(m.value)}</span>` : ""}</div>`).join("");
 
 // open on a view with #power-play or #penalty-kill (shareable), and on ?lineup=opening if asked
 if (location.hash === "#power-play") view = "pp";
@@ -262,6 +290,53 @@ drawLineup();
 showTab(location.hash === "#history" ? "history" : "lineup");
 $("status").hidden = true; $("page").hidden = false; fitLogo();
 }
+
+// ── Download (html-to-image, loaded on first use), as on the skater and goalie cards: one card, the header and
+// metrics with the rank history chart under them, at a fixed width so a phone's download looks like a desktop's ──
+let fontCSS = null, htmlToImage = null;
+async function embeddedFonts() {
+  if (fontCSS !== null) return fontCSS;
+  let out = "";
+  for (const link of document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"]')) {
+    const css = await (await fetch(link.href)).text();
+    for (const [, subset, face] of css.matchAll(/\/\* ([\w-]+) \*\/\s*(@font-face\s*\{[^}]*\})/g)) {
+      const url = face.match(/url\((https:[^)]+)\)/)?.[1];
+      if (!url || (subset !== "latin" && subset !== "latin-ext")) continue;
+      const blob = await (await fetch(url)).blob();
+      const data = await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+      out += face.replace(url, data) + "\n";
+    }
+  }
+  return (fontCSS = out);
+}
+async function capture(node, file, button) {
+  const label = button.textContent;
+  button.disabled = true; button.textContent = "Rendering…";
+  node.classList.add("capturing"); fitLogo();
+  // the one card: the header and metrics, then the rank history chart (drawn if its tab hasn't been opened yet)
+  const hist = $("shot-history");
+  await drawHistory();
+  const chart = $("chart").cloneNode(true);
+  chart.removeAttribute("id"); chart.querySelectorAll("#tip, #xhair").forEach(el => el.remove());
+  hist.innerHTML = `<h2>Analytical rank vs standings</h2>`; hist.append(chart);
+  try {
+    htmlToImage ??= await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm");
+    const url = await htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: false,
+      filter: el => !el.classList?.contains("dl"),
+      fontEmbedCSS: await embeddedFonts().catch(() => undefined), backgroundColor: getComputedStyle(document.body).backgroundColor });
+    Object.assign(document.createElement("a"), { href: url, download: `${file}.png` }).click();
+  } catch (err) {
+    alert(`Couldn't make the image (${err.message || err}).`);
+  } finally {
+    hist.replaceChildren();
+    node.classList.remove("capturing"); fitLogo();
+    button.disabled = false; button.textContent = label;
+  }
+}
+const fileName = what => `${TEAM.name.replace(/[^\w-]+/g, "-")}-${TEAM.seasonName}-${what}`;
+document.addEventListener("click", e => {
+  if (e.target.id === "dl-analytics") capture($("analytics-shot"), fileName("analytics"), e.target);
+});
 
 // ── Tabs: the lineup, or the rank history (#history, shareable) ─────────────────────────────────────────
 function showTab(t) {
