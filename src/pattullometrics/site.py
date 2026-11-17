@@ -220,14 +220,16 @@ def export_site(seasons=None, out: Path | str = OUT) -> Path:
     for name, src in {**GOALIE_PAGES, **TEAM_PAGES}.items():
         shutil.copy(Path(__file__).with_name(src), tmp / name)
     # team pages are an extra, like the goalie cards: a site without them beats no site
-    # every season's skaters, the pool the teams' roster ratings are curved against; and each team's analytical and
+    # every season's skaters and goalies, the pool the teams' metrics are curved against; and each team's analytical and
     # standings ranks by season (data/teams/history.json, the team page's chart)
     team_seasons, history = [], {}
     pool = {y: json.loads((tmp / "data" / str(y) / "index.json").read_text(encoding="utf-8"))["rows"]
             for y in seasons if (tmp / "data" / str(y) / "index.json").exists()}
+    goalie_pool = {y: json.loads((tmp / "data" / str(y) / "goalies.json").read_text(encoding="utf-8"))
+                   for y in seasons if (tmp / "data" / str(y) / "goalies.json").exists()}
     for y in sorted(seasons, reverse=True):
         try:
-            if ranked := team_pages.export_teams(tmp / "data" / str(y), y, tmp, pool):
+            if ranked := team_pages.export_teams(tmp / "data" / str(y), y, tmp, pool, goalie_pool):
                 team_seasons.append({"season": y, "name": season_name([y])})
                 for abbr, r in ranked.items():
                     history.setdefault(abbr, []).append({"season": y, "name": season_name([y])} | r)

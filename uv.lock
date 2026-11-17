@@ -480,7 +480,7 @@ wheels = [
 [[package]]
 name = "nhl-microstats"
 version = "0.1.0"
-source = { git = "https://github.com/CascV8/nhl-microstats.git#b9764fe3e94601d3844fb028786f9f487e3b38fd" }
+source = { git = "https://github.com/CascV8/nhl-microstats.git#d527ca1d738d2fd6e633abe8a53bb55976deaba3" }
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
@@ -964,7 +964,7 @@ wheels = [
 [[package]]
 name = "team-metrics"
 version = "0.1.0"
-source = { git = "https://github.com/CascV8/team-metrics.git#55675c50042ea0bb2e263c7783d40f71140a0a53" }
+source = { git = "https://github.com/CascV8/team-metrics.git#3425f257fc7b8beadfb6b12368364fff597f4531" }
 dependencies = [
     { name = "nhl-microstats" },
     { name = "numpy" },

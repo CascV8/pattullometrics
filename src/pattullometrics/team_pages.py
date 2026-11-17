@@ -42,10 +42,12 @@ def _logo(abbr: str, out: Path) -> None:
 # ── Matching Daily Faceoff's names to NHL ids ────────────────────────────────────────────────────────────
 
 
-def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]] | None = None) -> dict:
+def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]] | None = None,
+                 goalie_pool: dict[int, dict] | None = None) -> dict:
     """Write data/teams/<y>/ into ``out`` from season ``y``'s exported skaters and goalies (``season_dir``): the season
     under way from Daily Faceoff and today's standings, a complete season from its lineup after the trade deadline
-    (team_seasons/<y>.json). ``pool``: every tracked season's skater rows, which the roster ratings are curved against.
+    (team_seasons/<y>.json). ``pool``: every tracked season's skater rows, and ``goalie_pool`` its goalie ratings, which
+    the team metrics are curved against.
     Returns each team's analytical rank and its rank in the standings by P%, {abbr: {"rank", "standing", "teams"}}
     (empty when there are no team pages for the season)."""
     rows = json.loads((season_dir / "index.json").read_text(encoding="utf-8"))["rows"]
@@ -53,7 +55,7 @@ def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]
     gdata = json.loads(gpath.read_text(encoding="utf-8")) if gpath.exists() else {"goalies": []}
     skaters = {r["id"]: r for r in rows}
     goalies = {g["id"]: g for g in gdata["goalies"]}
-    st = season_teams(y, rows, gdata, pool)
+    st = season_teams(y, rows, gdata, pool, goalie_pool)
     if st is None:
         return {}
     teams, values, ranks, overall, metrics = st["teams"], st["values"], st["ranks"], st["overall"], st["metrics"]
@@ -93,13 +95,13 @@ def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]
                     "pp": [cards("pp1"), cards("pp2")], "pk": [cards("pk1"), cards("pk2")], "injured": cards("ir"),
                     "extras": None if lu["extras"] is None else [card(*p) for p in lu["extras"]]}
 
-        # the metrics in order, each with its rank; P%, PP% and PK% with the stat itself; the roster ratings with
-        # their percentile among every team-season tracked (pct), which the page shows in place of the rank
+        # the metrics in order, each with its rank; P%, PP% and PK% with the stat itself; the skater metrics (roster
+        # ratings and categories) with their percentile among every team-season from 2016-17 on (pct)
         def metric(m: str) -> dict:
             v = values[abbr][m]
             out = {"k": m, "rank": ranks[m][abbr],
                    "value": f"{100 * v:.1f}%" if m in dict(TEAM_STATS).values() and v is not None else ""}
-            if m in ROSTER.values():
+            if m in curved.get(abbr, {}):
                 out |= {"pct": curved[abbr][m], "value": ""}
             return out
         shown = [metric(m) for m in metrics]
@@ -116,3 +118,30 @@ def export_teams(season_dir: Path, y: int, out: Path, pool: dict[int, list[dict]
     (folder / "index.json").write_text(json.dumps({"season": y, "seasonName": season_name([y]), "teams": index}), encoding="utf-8")
     log.info("teams: %d team pages", len(index))
     return {a: {"rank": overall[a], "standing": ranks["P%"][a], "teams": len(values)} for a in values}
+
+
+def write_team_pool(seasons, out: Path | str) -> Path:
+    """Earlier seasons' team metrics, {"<start year>": {abbr: {metric: value}}}: the roster ratings, the categories
+    and Goaltending, for the pool the team pages' metrics are curved against (it ships as team_metrics/team_pool.json).
+    The seasons need only be built in the database (`nhl-microstats collect --no-edge`, then `build`): they aren't
+    on the site. Their players are ranked against the same comparison pool as the site's; their goalies within
+    their own season, as on the goalie pages."""
+    from nhl_microstats.cards import card_data
+    from nhl_microstats.percentile import start_year
+    import pandas as pd
+    from nhl_microstats import goalies
+    from team_metrics.teams import goaltending, skater_metrics
+    from .site import _index_row
+    pool = {}
+    for y in sorted(start_year(s) for s in seasons):
+        rows = [_index_row(c) for c in card_data(None, y)["cards"]]
+        g = goalies.goalie_ratings(pd.read_parquet(collect.collect_goalies(y)), True, goalies.load_xg(y))
+        metrics = skater_metrics(rows)
+        for a, v in goaltending(g).items():
+            metrics.setdefault(a, {})["Goaltending"] = v
+        pool[str(y)] = {a: {k: None if v is None else round(v, 2) for k, v in m.items()}
+                        for a, m in sorted(metrics.items())}
+        log.info("%s: %d teams", season_name([y]), len(pool[str(y)]))
+    out = Path(out)
+    out.write_text(json.dumps(pool, indent=1), encoding="utf-8")
+    return out

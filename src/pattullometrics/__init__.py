@@ -30,6 +30,10 @@ def main() -> None:
         if name == "watch":
             u.add_argument("--every", type=float, default=5, help="minutes between passes (default 5)")
 
+    rp = sub.add_parser("team-pool", help="earlier seasons' team skater metrics, the pool the team pages' metrics are curved against")
+    rp.add_argument("seasons", nargs="+", help="start years, seasons built in the database but not on the site")
+    rp.add_argument("--out", default="team_pool.json", help="written here; ships as team_metrics/team_pool.json")
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s  %(message)s", datefmt="%H:%M:%S")
     logging.getLogger("puckscrape").setLevel(logging.WARNING)
@@ -40,6 +44,9 @@ def main() -> None:
     elif args.cmd == "site":
         from .site import OUT, export_site
         export_site(args.seasons or None, args.out or OUT)
+    elif args.cmd == "team-pool":
+        from .team_pages import write_team_pool
+        write_team_pool(args.seasons, args.out)
     elif args.cmd in ("update", "watch"):
         from .site import OUT
         from .update import update_once, watch

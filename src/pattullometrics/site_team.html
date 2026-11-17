@@ -92,7 +92,7 @@ section { margin-top: 30px; }
 .metric { display: grid; justify-items: stretch; align-content: start; gap: 5px; min-width: 0; }
 .metric .k { font: 600 .74rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center;
   white-space: nowrap; }
-.metric .pct { font-size: 1.9rem; min-width: 0; height: 68px; display: grid; place-items: center; padding: 0; border-radius: 7px; }
+.metric .pct { font-size: 1.6rem; min-width: 0; width: 100%; max-width: 116px; justify-self: center; height: 54px; display: grid; place-items: center; padding: 0; border-radius: 7px; }
 .metric .v { font: 600 .78rem var(--body); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 
 /* lineup cards: taller, not wider: photo and name, then the scoring line beside the overall */
@@ -271,17 +271,17 @@ $("head").innerHTML = `<span class="logo" id="logo"></span>
 loadLogo(); document.fonts.ready.then(fitLogo); addEventListener("resize", fitLogo);
 
 // Team metrics, in order: each team's rank among the league's (1st best); P%, PP% and PK% with the stat itself under it.
-// Forwards and Blueline (the roster ratings) show this season's rank like the rest, and under it their percentile
-// among every team-season in the curve's pool.
-const curvedTitle = m => `${m.k === "Blueline" ? "Defencemen" : "Forwards"}: 5v5 overall by ice time. The box is the rank among `
-  + `this season's ${TEAM.teams} teams; the percentile under it is against every team-season in the pool`;
+// Every metric shows this season's rank among the teams. The skater metrics (Forwards, Blueline and the categories)
+// also show their percentile under it: where the team stands among every team-season from 2016-17 on.
+const curvedTitle = m => `${m.k}: the box is the rank among this season's ${TEAM.teams} teams; the percentile under it `
+  + `is against every team-season from 2016-17 on`;
 // P% isn't a square: it's beside the record, and its rank is the Standings box.
 const shownMetrics = TEAM.metrics.filter(m => m.k !== "P%");
 const cols = max => { for (let c = max; c >= 2; c--) if (shownMetrics.length % c === 0) return c; return max; };
 Object.entries({ "--c-lg": cols(7), "--c-md": cols(4), "--c-sm": cols(3) }).forEach(([k, v]) => $("metrics").style.setProperty(k, v));
 $("metrics").innerHTML = shownMetrics.map(m => `<div class="metric"${"pct" in m ? ` title="${esc(curvedTitle(m))}"` : ""}>
   <span class="k">${esc(m.k)}</span>${rankBox(m.rank)}
-  ${"pct" in m ? (m.pct == null ? "" : `<span class="v">${shown(m.pct)} pctile</span>`) : m.value ? `<span class="v">${esc(m.value)}</span>` : ""}</div>`).join("");
+  ${"pct" in m ? (m.pct == null ? "" : `<span class="v">${shown(m.pct)} percentile</span>`) : m.value ? `<span class="v">${esc(m.value)}</span>` : ""}</div>`).join("");
 
 // open on a view with #power-play or #penalty-kill (shareable), and on ?lineup=opening if asked
 if (location.hash === "#power-play") view = "pp";
@@ -347,10 +347,10 @@ function showTab(t) {
 }
 
 // ── Rank history: the analytical OVR and the standings (by P%) by season, one line each, 1st at the top ──────
-// Colours checked for colour-blind separation on the surface; the standings line is dashed as well.
+// Colours checked for colour-blind separation on the surface (both lines solid).
 let HISTORY;
 const SERIES = [{ k: "rank", name: "Analytical OVR", short: "Analytical", c: "#4a8ad6", dash: "" },
-                { k: "standing", name: "Standings (P%)", short: "Standings", c: "#d06a1f", dash: "6 5" }];
+                { k: "standing", name: "Standings (P%)", short: "Standings", c: "#d06a1f", dash: "" }];
 async function drawHistory() {
   if (HISTORY === undefined) {
     try { HISTORY = (await (await fetch("data/teams/history.json")).json())[TEAM.abbrev] || []; } catch { HISTORY = []; }
