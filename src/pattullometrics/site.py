@@ -145,9 +145,15 @@ ROOKIES = "https://api.nhle.com/stats/rest/en/{who}/bios"
 def _rookies(y: int, goalie: bool) -> set[int]:
     """NHL ids of the season's rookies by the NHL's own rule (the Calder's: no more than 25 games in
     any earlier season, nor 6+ in each of two, and not 26 by September 15)."""
-    d = _http.get_json(ROOKIES.format(who="goalie" if goalie else "skater"), params={
-        "limit": -1, "cayenneExp": f"seasonId={y}{y + 1} and gameTypeId=2 and isRookie='1'"})
-    return {int(r["playerId"]) for r in d.get("data", [])}
+    ids, start = set(), 0
+    while True:   # the API returns at most 100 rows per request, whatever `limit` says
+        d = _http.get_json(ROOKIES.format(who="goalie" if goalie else "skater"), params={
+            "limit": 100, "start": start, "cayenneExp": f"seasonId={y}{y + 1} and gameTypeId=2 and isRookie='1'"})
+        page = d.get("data", [])
+        ids |= {int(r["playerId"]) for r in page}
+        start += len(page)
+        if len(page) < 100 or start >= d.get("total", start + 1):
+            return ids
 
 
 def _bios(y: int, goalie: bool = False) -> dict:
