@@ -31,6 +31,7 @@ import pyarrow.parquet as pq
 
 from nhl_microstats import collect, curves, db
 from nhl_microstats.build import build_season
+from nhl_microstats.goal_tracking import build_goal_tracking, collect_goal_tracking
 
 from .site import OUT, code_hash, default_seasons, export_site
 
@@ -119,6 +120,13 @@ def update_once(season=None, out=OUT, deploy: str | None = None, force: bool = F
     # fit curves for stats that have none yet, so a new stat reaches the site with the next update.
     db.init()
     build_season(y)
+    # build_season replaces the season's stats, goal-tracking ones included: collect the new goals' tracking
+    # (games already downloaded are skipped) and put them back. An extra: the site goes out without them if the NHL's file server is down.
+    try:
+        collect_goal_tracking(y)
+        build_goal_tracking(y)
+    except Exception:
+        log.exception("goal tracking failed; the site goes out without its stats")
     curves.fit_missing()
     export_site(sorted({y, *default_seasons()}, reverse=True), out)   # past seasons come from the cache
     _save(site_code=code_hash())
